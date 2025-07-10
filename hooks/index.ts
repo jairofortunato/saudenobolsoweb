@@ -1,8 +1,8 @@
-// Custom React hooks
-// Export all hooks from this file
+// Authentication hooks
+export { useAuth, useAuthState, AuthContext } from './useAuth'
 
-// Auth hooks (Phase 2.3)
-// export { useAuth } from './useAuth';
-// export { useUser } from './useUser';
+// User management hooks  
+export { useUser } from './useUser'
 
-// Add hook exports here as they are created 
+// Re-export authentication context provider
+export { AuthProvider } from '../src/contexts/AuthContext' 
