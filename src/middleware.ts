@@ -118,25 +118,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  // If user is authenticated and trying to access auth pages
-  if (user && (pathname === '/signin' || pathname === '/signup')) {
-    const redirectUrl = request.nextUrl.clone()
-    
-    // Get user profile to determine redirect destination
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('user_id', user.id)
-      .single()
-    
-    if (profile?.role === 'doctor') {
-      redirectUrl.pathname = '/doctor/dashboard'
-    } else {
-      redirectUrl.pathname = '/dashboard'
-    }
-    
-    return NextResponse.redirect(redirectUrl)
-  }
+  // Allow authenticated users to access signin/signup pages for testing
+  // In production, you might want to redirect authenticated users away from these pages
 
   // Role-based route protection
   if (user && (isDoctorRoute || isPatientRoute)) {
@@ -189,25 +172,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Auto-redirect root based on authentication status
-  if (pathname === '/') {
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single()
-      
-      const redirectUrl = request.nextUrl.clone()
-      if (profile?.role === 'doctor') {
-        redirectUrl.pathname = '/doctor/dashboard'
-      } else {
-        redirectUrl.pathname = '/dashboard'
-      }
-      
-      return NextResponse.redirect(redirectUrl)
-    }
-  }
+  // Allow authenticated users to visit home page
+  // Remove auto-redirect from root to allow testing and navigation
 
   return response
 }

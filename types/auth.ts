@@ -71,6 +71,7 @@ export interface AuthResult {
   error?: string
   user?: AuthUser
   profile?: Profile
+  requiresEmailConfirmation?: boolean
 }
 
 export interface AuthError {
