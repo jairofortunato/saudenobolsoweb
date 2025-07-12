@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../ui/Button';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
   ({ className, collapsed = false, onCollapsedChange, ...props }, ref) => {
     const { user, profile, signOut, loading } = useAuth();
     const pathname = usePathname();
+    const router = useRouter();
     const [isCollapsed, setIsCollapsed] = useState(collapsed);
 
     const handleToggleCollapse = () => {
@@ -28,6 +29,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     const handleSignOut = async () => {
       try {
         await signOut();
+        // Redirect to sign-in page after successful sign-out
+        router.push('/signin');
       } catch (error) {
         console.error('Error signing out:', error);
       }
