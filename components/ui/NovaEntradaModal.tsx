@@ -8,7 +8,10 @@ import { Alert } from './Alert';
 interface NovaEntradaModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: { category: string; content: string }) => void;
+  onSubmit: (data: { 
+    category: string; 
+    content: string; 
+  }) => void;
   defaultCategory?: string;
 }
 
@@ -34,11 +37,9 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({
   const [processingStep, setProcessingStep] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<boolean>(false);
-  const [isInChatMode, setIsInChatMode] = useState<boolean>(false);
-  const [aiMessage, setAiMessage] = useState<string>('');
-  const [conversationHistory, setConversationHistory] = useState<string>('');
 
   const handleSubmit = async () => {
+    // Validate required fields
     if (!selectedCategory || !content.trim()) {
       setError('Por favor, selecione uma categoria e insira o conteúdo.');
       return;
@@ -49,24 +50,21 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({
     setSuccess(false);
 
     try {
-      setProcessingStep('🤖 Processando texto com IA...');
-      
-      // Build the full conversation text
-      const fullConversationText = isInChatMode 
-        ? `${conversationHistory}\n\nInformações adicionais: ${content.trim()}`
-        : content.trim();
+      setProcessingStep('🤖 Processando com IA...');
       
       // Call the AI processing endpoint
+      const requestBody = {
+        text: content.trim(),
+        category: selectedCategory,
+        submitDirectly: true
+      };
+
       const response = await fetch('/api/ai/process', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          text: fullConversationText,
-          category: selectedCategory,
-          submitDirectly: true // Submit directly to the medical endpoint
-        })
+        body: JSON.stringify(requestBody)
       });
 
       const result = await response.json();
@@ -76,29 +74,16 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({
         setSuccess(true);
         
         // Call the original onSubmit callback for compatibility
-        onSubmit({ category: selectedCategory, content: fullConversationText });
+        onSubmit({ 
+          category: selectedCategory, 
+          content: content.trim()
+        });
         
-        // Reset form after a short delay
+        // Reset form after a delay to show results
         setTimeout(() => {
           resetForm();
-        }, 1500);
+        }, 2000);
       } else {
-        // Check if AI needs more information (handle both success=false and 400 status)
-        if (result.needsMoreInfo && result.missingInfoMessage) {
-          // Update conversation history with the current input
-          const newHistory = isInChatMode 
-            ? `${conversationHistory}\n\nInformações adicionais: ${content.trim()}`
-            : `Informação inicial: ${content.trim()}`;
-          
-          setConversationHistory(newHistory);
-          setIsInChatMode(true);
-          setAiMessage(result.missingInfoMessage);
-          setContent(''); // Clear input for next message
-          setIsProcessing(false);
-          setProcessingStep('');
-          return;
-        }
-        
         throw new Error(result.error || 'Falha ao processar entrada médica');
       }
 
@@ -117,9 +102,6 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({
     setSuccess(false);
     setProcessingStep('');
     setIsProcessing(false);
-    setIsInChatMode(false);
-    setAiMessage('');
-    setConversationHistory('');
   };
 
   const handleClose = () => {
@@ -128,12 +110,10 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({
     onClose();
   };
 
-  const handleContinueConversation = () => {
-    if (!content.trim()) {
-      setError('Por favor, forneça mais informações.');
-      return;
-    }
-    handleSubmit();
+  // Helper function to get category label
+  const getCategoryLabel = (categoryId: string) => {
+    const category = categories.find(cat => cat.id === categoryId);
+    return category ? category.label : categoryId;
   };
 
   // Get the selected category info for display
@@ -145,86 +125,24 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({
     : '➕ Nova Entrada';
 
   return (
-    <Modal open={open} onClose={handleClose} size="lg" title={modalTitle}>
+    <Modal open={open} onClose={handleClose} size="full" title={modalTitle}>
       <div className="space-y-6">
-        {/* Description */}
-      
-
-        {/* Category Selection - Only show if no defaultCategory */}
-        {!defaultCategory && (
-          <div>
-            <h3 className="text-lg font-semibold text-slate-800 mb-3">
-              Escolha a categoria:
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {categories.map((category) => (
-                <button
-                  key={category.id}
-                  onClick={() => setSelectedCategory(category.id)}
-                  className={`
-                    p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105
-                    ${selectedCategory === category.id 
-                      ? 'border-blue-500 bg-blue-50 shadow-md' 
-                      : 'border-slate-200 hover:border-slate-300'
-                    }
-                  `}
-                >
-                  <div className="text-center">
-                    <div className="text-2xl mb-1">{category.icon}</div>
-                    <div className={`text-sm font-medium ${category.color}`}>
-                      {category.label}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-
-
         {/* Content Input */}
         <div>
           <h3 className="text-lg font-semibold text-slate-800 mb-3">
-            {isInChatMode && aiMessage ? (
-              <div className="whitespace-pre-line text-base">
-                {aiMessage}
-              </div>
-            ) : (
-              'Descreva as informações:'
-            )}
+            Descreva as informações:
           </h3>
           
-          {/* Show conversation history when in chat mode */}
-          {isInChatMode && conversationHistory && (
-            <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg">
-              <div className="text-sm text-slate-600 mb-2">
-                <strong>📝 Informações já fornecidas:</strong>
-              </div>
-              <div className="text-sm text-slate-700 whitespace-pre-line">
-                {conversationHistory}
-              </div>
-            </div>
-          )}
-          
           <div className="space-y-4">
-            {/* Textarea with reduced height */}
+            {/* Textarea */}
             <div className="relative">
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder={
-                  isInChatMode 
-                    ? "Forneça mais detalhes conforme solicitado acima..."
-                    : "Digite aqui as informações médicas que você gostaria de adicionar..."
-                }
-                className="w-full p-4 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none h-32"
+                placeholder="Digite aqui as informações médicas que você gostaria de adicionar..."
+                className="w-full p-4 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none h-48"
                 disabled={isProcessing}
-                maxLength={1000}
               />
-              <div className="absolute bottom-2 right-2 text-xs text-slate-400">
-                {content.length}/1000
-              </div>
             </div>
 
             {/* AI Processing Info */}
@@ -255,39 +173,6 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({
                 <span className="ml-2">{error}</span>
               </Alert>
             )}
-
-            {/* Camera and Audio Buttons - Only show when not in chat mode */}
-            {!isInChatMode && (
-              <div className="flex gap-3 justify-center">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="flex-1 max-w-[150px] h-12"
-                  disabled={isProcessing}
-                  onClick={() => {
-                    // TODO: Implement camera functionality
-                    console.log('Camera button clicked');
-                  }}
-                >
-                  <span className="text-2xl mr-2">📷</span>
-                  <span>Câmera</span>
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="flex-1 max-w-[150px] h-12"
-                  disabled={isProcessing}
-                  onClick={() => {
-                    // TODO: Implement audio functionality
-                    console.log('Audio button clicked');
-                  }}
-                >
-                  <span className="text-2xl mr-2">🎤</span>
-                  <span>Áudio</span>
-                </Button>
-              </div>
-            )}
           </div>
         </div>
 
@@ -305,8 +190,12 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({
           <Button
             variant="primary"
             size="lg"
-            onClick={isInChatMode ? handleContinueConversation : handleSubmit}
-            disabled={!selectedCategory || !content.trim() || isProcessing}
+            onClick={handleSubmit}
+            disabled={
+              isProcessing || 
+              !selectedCategory || 
+              !content.trim()
+            }
             className="flex-1"
           >
             {isProcessing ? (
@@ -314,8 +203,6 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({
                 <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
                 <span>Processando com IA...</span>
               </div>
-            ) : isInChatMode ? (
-              'Continuar Conversa'
             ) : (
               'Adicionar Entrada'
             )}

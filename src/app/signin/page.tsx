@@ -46,7 +46,7 @@ function SigninContent() {
   // Redirect to dashboard after successful authentication
   useEffect(() => {
     if (user && profile) {
-      const redirectUrl = returnUrl || '/dashboard';
+      const redirectUrl = getSafeReturnUrl(returnUrl, profile.role);
       router.replace(redirectUrl);
     }
   }, [user, profile, router, returnUrl]);

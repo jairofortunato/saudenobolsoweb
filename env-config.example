@@ -1,0 +1,19 @@
+# Supabase Configuration (Existing)
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+
+# AI Processor Backend Configuration (New)
+# For local testing:
+AI_PROCESSOR_URL=http://localhost:8000
+AI_PROCESSOR_API_KEY=test-api-key
+AI_PROCESSOR_TIMEOUT=30000
+
+# For production:
+# AI_PROCESSOR_URL=https://your-ai-processor.railway.app
+# AI_PROCESSOR_API_KEY=your_secure_api_key_here
+
+# Optional: OpenAI Configuration (Legacy - if fallback needed)
+# OPENAI_API_KEY=your_openai_api_key_here
+
+# Next.js Configuration
+NODE_ENV=development 

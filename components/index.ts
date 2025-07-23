@@ -1,37 +1,26 @@
-// Reusable components
-// Export all components from this file
+// Re-export all components
+export * from './ui/Alert';
+export * from './ui/BadgeToggleCard';
+export * from './ui/Button';
+export * from './ui/Card';
+export * from './ui/CPFInput';
+export * from './ui/FormField';
+export * from './ui/Input';
+export * from './ui/Loading';
+export * from './ui/Modal';
+export * from './ui/NovaEntradaModal';
+export * from './ui/PINInput';
+export * from './ui/RoleSelector';
+export * from './ui/Textarea';
+export * from './ui/TitleToggleCard';
 
-// Base components (Phase 3.1)
-export { Button, buttonVariants } from './ui/Button';
-export { Input, inputVariants } from './ui/Input';
-export { Textarea, textareaVariants } from './ui/Textarea';
-export { Modal } from './ui/Modal';
-export { 
-  Card, 
-  CardHeader, 
-  CardFooter, 
-  CardTitle, 
-  CardDescription, 
-  CardContent,
-  cardVariants 
-} from './ui/Card';
-export { Loading, loadingVariants } from './ui/Loading';
-export { Alert, Toast, alertVariants, toastVariants } from './ui/Alert';
+// Layout components
+export * from './layout/AuthLayout';
+export * from './layout/DashboardLayout';
+export * from './layout/Header';
+export * from './layout/Layout';
+export * from './layout/Sidebar';
 
-// Layout components (Phase 3.2)
-export { Header } from './layout/Header';
-export { Sidebar } from './layout/Sidebar';
-export { Layout } from './layout/Layout';
-export { AuthLayout } from './layout/AuthLayout';
-export { DashboardLayout } from './layout/DashboardLayout';
-
-// Form components (Phase 3.3)
-export { FormField } from './ui/FormField';
-export { CPFInput } from './ui/CPFInput';
-export { PINInput } from './ui/PINInput';
-export { RoleSelector, type UserRole } from './ui/RoleSelector';
-
-// Modal components
-export { NovaEntradaModal } from './ui/NovaEntradaModal';
-
-// Add component exports here as they are created 
+// Doctor components
+export * from './doctor/PatientSearch';
+export * from './doctor/PatientDisplay'; 

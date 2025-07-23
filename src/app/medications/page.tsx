@@ -6,11 +6,10 @@ import { useAuth } from '../../../hooks/useAuth';
 import { 
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
   Button,
   NovaEntradaModal,
-  Loading
+  Loading,
+  TitleToggleCard
 } from '../../../components';
 
 interface Medication {
@@ -82,9 +81,6 @@ export default function MedicationsPage() {
 
   // Delete medication function
   const deleteMedication = async (medicationId: string, medicationName: string) => {
-    const confirmed = window.confirm(`Tem certeza que deseja deletar o medicamento "${medicationName}"?`);
-    if (!confirmed) return;
-
     try {
       setDeleting(medicationId);
       
@@ -260,72 +256,38 @@ export default function MedicationsPage() {
               </Card>
             ) : (
               /* Medications Grid */
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {medications.map((medication) => (
-                  <Card key={medication.id} className="hover:shadow-lg transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <CardTitle className="text-lg font-semibold text-slate-800 leading-tight">
-                          {editing === medication.id ? (
-                            <input
-                              type="text"
-                              value={editData.name || ''}
-                              onChange={(e) => setEditData(prev => ({ ...prev, name: e.target.value }))}
-                              className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              placeholder="Nome do medicamento"
-                            />
-                          ) : (
-                            `💊 ${medication.name}`
-                          )}
-                        </CardTitle>
-                        <div className="flex items-center gap-2">
-                          {editing === medication.id ? (
-                            <>
-                              <button
-                                onClick={saveMedication}
-                                disabled={saving}
-                                className="text-green-600 hover:text-green-800 hover:bg-green-50 p-2 rounded-full transition-colors disabled:opacity-50"
-                                title="Salvar alterações"
-                              >
-                                {saving ? '⏳' : '✅'}
-                              </button>
-                              <button
-                                onClick={cancelEditing}
-                                disabled={saving}
-                                className="text-gray-600 hover:text-gray-800 hover:bg-gray-50 p-2 rounded-full transition-colors disabled:opacity-50"
-                                title="Cancelar edição"
-                              >
-                                ❌
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => startEditing(medication)}
-                                className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-full transition-colors"
-                                title="Editar medicamento"
-                              >
-                                ✏️
-                              </button>
-                              <button
-                                onClick={() => deleteMedication(medication.id, medication.name)}
-                                disabled={deleting === medication.id}
-                                className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-full transition-colors disabled:opacity-50"
-                                title="Deletar medicamento"
-                              >
-                                {deleting === medication.id ? '⏳' : '🗑️'}
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {medications.map((medication) => {
+                  const isEditing = editing === medication.id;
+                  
+                  return (
+                    <TitleToggleCard
+                      key={medication.id}
+                      id={medication.id}
+                      title={`💊 ${medication.name}`}
+                      isEditing={isEditing}
+                      onEdit={() => startEditing(medication)}
+                      onDelete={() => deleteMedication(medication.id, medication.name)}
+                      onSave={saveMedication}
+                      onCancel={cancelEditing}
+                      deleteConfirmMessage={`Tem certeza que deseja deletar o medicamento "${medication.name}"?`}
+                      editingTitle={
+                        <input
+                          type="text"
+                          value={editData.name || ''}
+                          onChange={(e) => setEditData(prev => ({ ...prev, name: e.target.value }))}
+                          className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="Nome do medicamento"
+                        />
+                      }
+                      isDeleting={deleting === medication.id}
+                      isSaving={saving}
+                    >
                       {/* Dosage and Frequency */}
-                      <div className="bg-blue-50 rounded-lg p-3">
-                        <div className="flex items-center text-sm mb-1">
+                      <div className="bg-blue-50 rounded-lg p-1.5">
+                        <div className="flex items-center text-sm mb-0.5">
                           <span className="font-medium text-blue-800 mr-2">Dosagem:</span>
-                          {editing === medication.id ? (
+                          {isEditing ? (
                             <input
                               type="text"
                               value={editData.dosage || ''}
@@ -339,7 +301,7 @@ export default function MedicationsPage() {
                         </div>
                         <div className="flex items-center text-sm">
                           <span className="font-medium text-blue-800 mr-2">Frequência:</span>
-                          {editing === medication.id ? (
+                          {isEditing ? (
                             <input
                               type="text"
                               value={editData.frequency || ''}
@@ -354,10 +316,10 @@ export default function MedicationsPage() {
                       </div>
 
                       {/* Dates */}
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         <div className="flex items-center text-sm text-slate-600">
                           <span className="font-medium mr-2">📅 Início:</span>
-                          {editing === medication.id ? (
+                          {isEditing ? (
                             <input
                               type="date"
                               value={editData.start_date || ''}
@@ -370,7 +332,7 @@ export default function MedicationsPage() {
                         </div>
                         <div className="flex items-center text-sm text-slate-600">
                           <span className="font-medium mr-2">🏁 Fim:</span>
-                          {editing === medication.id ? (
+                          {isEditing ? (
                             <input
                               type="date"
                               value={editData.end_date || ''}
@@ -384,10 +346,10 @@ export default function MedicationsPage() {
                       </div>
 
                       {/* Notes */}
-                      <div className="bg-slate-50 rounded-lg p-3">
+                      <div className="bg-slate-50 rounded-lg p-1.5">
                         <div className="text-sm">
-                          <span className="font-medium text-slate-700 block mb-1">📝 Observações:</span>
-                          {editing === medication.id ? (
+                          <span className="font-medium text-slate-700 block mb-0.5">📝 Observações:</span>
+                          {isEditing ? (
                             <textarea
                               value={editData.notes || ''}
                               onChange={(e) => setEditData(prev => ({ ...prev, notes: e.target.value }))}
@@ -402,14 +364,14 @@ export default function MedicationsPage() {
                       </div>
 
                       {/* Created Date */}
-                      <div className="pt-2 border-t border-slate-100">
+                      <div className="pt-1 border-t border-slate-100">
                         <span className="text-xs text-slate-500">
                           Adicionado em {formatDate(medication.created_at)}
                         </span>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                    </TitleToggleCard>
+                  );
+                })}
               </div>
             )}
           </>

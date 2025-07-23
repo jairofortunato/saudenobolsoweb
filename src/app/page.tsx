@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 import { 
   Button,
@@ -14,6 +15,14 @@ import { getDashboardRoute, getDisplayName } from '../../lib/auth-utils';
 
 export default function Home() {
   const { user, profile, loading, error, signOut } = useAuth();
+  const router = useRouter();
+
+  // Redirect to dashboard if user is authenticated
+  useEffect(() => {
+    if (!loading && user && profile) {
+      router.push(getDashboardRoute(profile.role));
+    }
+  }, [loading, user, profile, router]);
 
   const handleSignOut = async () => {
     try {
@@ -145,214 +154,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* Features Grid */}
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 mb-16">
-          
-          {/* For Patients */}
-          <Card>
-            <CardHeader>
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <CardTitle>Para Pacientes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 text-sm text-slate-600">
-                <li>• Gerencie medicamentos e alergias</li>
-                <li>• Histórico de exames e consultas</li>
-                <li>• PIN de emergência para médicos</li>
-                <li>• Dados sempre atualizados</li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          {/* For Doctors */}
-          <Card>
-            <CardHeader>
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <CardTitle>Para Médicos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 text-sm text-slate-600">
-                <li>• Acesso rápido por CPF + PIN</li>
-                <li>• Histórico médico completo</li>
-                <li>• Informações de emergência</li>
-                <li>• Adicionar novos registros</li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          {/* Security */}
-          <Card>
-            <CardHeader>
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <CardTitle>Segurança</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 text-sm text-slate-600">
-                <li>• Dados criptografados</li>
-                <li>• Autenticação segura</li>
-                <li>• Validação de CPF brasileira</li>
-                <li>• Controle de acesso por roles</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Demo Section */}
-        <div className="text-center">
-          <Card className="max-w-2xl mx-auto bg-gradient-to-r from-slate-50 to-slate-100">
-            <CardHeader>
-              <CardTitle>Experimente o Sistema</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-slate-600 mb-6">
-                Teste todas as funcionalidades com as páginas de demonstração
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Link href="/auth-demo">
-                  <Button variant="outline" className="w-full">
-                    Demo de Autenticação
-                  </Button>
-                </Link>
-                <Link href="/form-components-demo">
-                  <Button variant="outline" className="w-full">
-                    Demo de Componentes
-                  </Button>
-                </Link>
-                <Link href="/components-demo">
-                  <Button variant="outline" className="w-full">
-                    Demo de UI
-                  </Button>
-                </Link>
-                <Link href="/test-supabase">
-                  <Button variant="outline" className="w-full">
-                    Teste Supabase
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Development Status */}
-        {process.env.NODE_ENV === 'development' && (
-          <Card className="max-w-2xl mx-auto bg-blue-50 border-blue-200">
-            <CardHeader>
-              <CardTitle className="text-blue-800">Development Mode</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="text-sm">
-                  <strong>Authentication Status:</strong>
-                  <div className="mt-2 p-3 bg-white rounded-lg">
-                    {user ? (
-                      <div className="text-green-700">
-                        ✅ Authenticated as {profile ? getDisplayName(profile) : user.email}
-                        {profile ? ` (${profile.role})` : ' (profile loading...)'}
-                      </div>
-                    ) : (
-                      <div className="text-red-700">
-                        ❌ Not authenticated
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                {user && (
-                  <div className="space-y-2">
-                    <p className="text-sm text-blue-700">
-                      <strong>Quick Actions:</strong>
-                    </p>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={handleSignOut}>
-                        Clear Session
-                      </Button>
-                      {profile && (
-                        <Link href={getDashboardRoute(profile.role)}>
-                          <Button variant="primary" size="sm">
-                            Go to Dashboard
-                          </Button>
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {!user && (
-                  <div className="space-y-2">
-                    <p className="text-sm text-blue-700">
-                      <strong>Test Signup/Signin:</strong>
-                    </p>
-                    <div className="flex gap-2">
-                      <Link href="/signup">
-                        <Button variant="primary" size="sm">
-                          Test Signup
-                        </Button>
-                      </Link>
-                      <Link href="/signin">
-                        <Button variant="secondary" size="sm">
-                          Test Signin
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </main>
-
-      {/* Footer */}
-      <footer className="bg-slate-800 text-white py-12 mt-16">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-8 md:grid-cols-3">
-            
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Saúde no Bolso</h3>
-              <p className="text-slate-300 text-sm">
-                Plataforma segura para gerenciamento de informações médicas, 
-                desenvolvida para facilitar o acesso em emergências.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Funcionalidades</h3>
-              <ul className="space-y-2 text-sm text-slate-300">
-                <li>Gestão de medicamentos</li>
-                <li>Histórico de consultas</li>
-                <li>Informações de emergência</li>
-                <li>Acesso médico seguro</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Tecnologia</h3>
-              <ul className="space-y-2 text-sm text-slate-300">
-                <li>Next.js + TypeScript</li>
-                <li>Supabase Database</li>
-                <li>Tailwind CSS</li>
-                <li>Autenticação Segura</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-slate-700 mt-8 pt-8 text-center text-sm text-slate-400">
-            <p>&copy; 2024 Saúde no Bolso. Desenvolvido para cuidar da sua saúde.</p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
