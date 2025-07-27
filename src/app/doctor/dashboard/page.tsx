@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '../../../../components/layout/DashboardLayout';
 import { useAuth } from '../../../../hooks/useAuth';
 import { 
-  Loading
+  Loading,
+  Button,
+  NovaEntradaModal
 } from '../../../../components';
 import { PatientSearch } from '../../../../components/doctor/PatientSearch';
 import { PatientDisplay } from '../../../../components/doctor/PatientDisplay';
@@ -44,6 +46,10 @@ export default function DoctorDashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [searchResult, setSearchResult] = useState<PatientSearchResult | null>(null);
+  
+  // NovaEntradaModal state
+  const [isNovaEntradaModalOpen, setIsNovaEntradaModalOpen] = useState(false);
+  const [processingResult, setProcessingResult] = useState<any>(null);
 
   // Redirect if not a doctor
   useEffect(() => {
@@ -62,6 +68,26 @@ export default function DoctorDashboardPage() {
 
   const handleNewSearch = () => {
     setSearchResult(null);
+  };
+
+  const handleNovaEntradaSubmit = (data: { category: string; content: string }) => {
+    console.log('Nova entrada submitted:', data);
+    // The modal handles the AI processing internally
+  };
+
+  const handleProcessingComplete = (result: any) => {
+    setProcessingResult(result);
+    // You could show a success notification here
+    console.log('Processing completed:', result);
+  };
+
+  const openNovaEntradaModal = () => {
+    setIsNovaEntradaModalOpen(true);
+  };
+
+  const closeNovaEntradaModal = () => {
+    setIsNovaEntradaModalOpen(false);
+    setProcessingResult(null);
   };
 
   if (loading || !profile) {
@@ -85,20 +111,66 @@ export default function DoctorDashboardPage() {
       ]}
     >
       <div className="space-y-6">
-        {/* Always show PatientSearch for easy searching */}
-        <PatientSearch 
-          onPatientFound={handlePatientFound}
-          onClear={handleNewSearch}
-        />
-        
-        {/* Show PatientDisplay when a patient is found */}
-        {searchResult && (
-          <PatientDisplay 
-            patient={searchResult.patient}
-            medicalData={searchResult.medicalData}
-            onNewSearch={handleNewSearch}
+        {/* Quick Actions Section */}
+        <div className="bg-white rounded-lg border border-slate-200 p-6">
+          <h2 className="text-xl font-semibold text-slate-800 mb-4">
+            🚀 Ações Rápidas
+          </h2>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="primary"
+              onClick={openNovaEntradaModal}
+              className="flex items-center gap-2"
+            >
+              <span>➕</span>
+              <span>Nova Entrada Médica</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => window.location.reload()}
+              className="flex items-center gap-2"
+            >
+              <span>🔄</span>
+              <span>Atualizar</span>
+            </Button>
+          </div>
+          <p className="text-sm text-slate-600 mt-3">
+            💡 Use "Nova Entrada Médica" para adicionar informações médicas para um paciente via PIN
+          </p>
+        </div>
+
+        {/* Patient Search Section */}
+        <div className="bg-white rounded-lg border border-slate-200 p-6">
+          <h2 className="text-xl font-semibold text-slate-800 mb-4">
+            🔍 Buscar Paciente
+          </h2>
+          <PatientSearch 
+            onPatientFound={handlePatientFound}
+            onClear={handleNewSearch}
           />
+        </div>
+        
+        {/* Patient Display Section */}
+        {searchResult && (
+          <div className="bg-white rounded-lg border border-slate-200 p-6">
+            <h2 className="text-xl font-semibold text-slate-800 mb-4">
+              📋 Dados do Paciente
+            </h2>
+            <PatientDisplay 
+              patient={searchResult.patient}
+              medicalData={searchResult.medicalData}
+              onNewSearch={handleNewSearch}
+            />
+          </div>
         )}
+
+        {/* NovaEntradaModal */}
+        <NovaEntradaModal
+          open={isNovaEntradaModalOpen}
+          onClose={closeNovaEntradaModal}
+          onSubmit={handleNovaEntradaSubmit}
+          onProcessingComplete={handleProcessingComplete}
+        />
       </div>
     </DashboardLayout>
   );

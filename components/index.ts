@@ -9,6 +9,7 @@ export * from './ui/Input';
 export * from './ui/Loading';
 export * from './ui/Modal';
 export * from './ui/NovaEntradaModal';
+export * from './ui/ProcessingResultsModal';
 export * from './ui/PINInput';
 export * from './ui/RoleSelector';
 export * from './ui/Textarea';

@@ -131,7 +131,7 @@ export class AIProcessorClient {
         headers: this.apiKey ? {
           'Authorization': `Bearer ${this.apiKey}`,
         } : {},
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(10000), // Increased to 10 seconds
       });
 
       return response.ok;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '../../../components/layout/DashboardLayout';
 import { useAuth } from '../../../hooks/useAuth';
@@ -11,6 +11,7 @@ import {
   CardTitle,
   Button,
   NovaEntradaModal,
+  ProcessingResultsModal,
   Loading,
   BadgeToggleCard
 } from '../../../components';
@@ -29,6 +30,8 @@ export default function DashboardPage() {
   const { user, profile } = useAuth();
   const router = useRouter();
   const [isNovaEntradaModalOpen, setIsNovaEntradaModalOpen] = useState(false);
+  const [isProcessingResultsModalOpen, setIsProcessingResultsModalOpen] = useState(false);
+  const [processingResult, setProcessingResult] = useState<any>(null);
   const [medicalData, setMedicalData] = useState<MedicalData>({
     medications: [],
     allergies: [],
@@ -46,6 +49,66 @@ export default function DashboardPage() {
   const [saving, setSaving] = useState(false);
   const [editData, setEditData] = useState<Record<string, any>>({});
 
+  // Fetch medical data from all APIs
+  const fetchMedicalData = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Fetch data from all medical categories
+      const [
+        medicationsRes,
+        allergiesRes,
+        examsRes,
+        diseasesRes,
+        consultationsRes
+      ] = await Promise.all([
+        fetch('/api/medications'),
+        fetch('/api/allergies'),
+        fetch('/api/exams'),
+        fetch('/api/diseases'),
+        fetch('/api/consultations')
+      ]);
+
+      const [
+        medicationsData,
+        allergiesData,
+        examsData,
+        diseasesData,
+        consultationsData
+      ] = await Promise.all([
+        medicationsRes.json(),
+        allergiesRes.json(),
+        examsRes.json(),
+        diseasesRes.json(),
+        consultationsRes.json()
+      ]);
+
+      setMedicalData({
+        medications: medicationsData.medications || [],
+        allergies: allergiesData.allergies || [],
+        exams: examsData.exams || [],
+        diseases: diseasesData.diseases || [],
+        consultations: consultationsData.consultations || []
+      });
+    } catch (error) {
+      console.error('Error fetching medical data:', error);
+      setError('Failed to load medical data');
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const handleProcessingComplete = useCallback((result: any) => {
+    console.log('Processing completed:', result);
+    setProcessingResult(result);
+    setIsProcessingResultsModalOpen(true);
+    // Refresh medical data to show new entries
+    fetchMedicalData();
+  }, [fetchMedicalData]);
+
   // Redirect doctors to their own dashboard
   useEffect(() => {
     if (profile && profile.role === 'doctor') {
@@ -54,61 +117,9 @@ export default function DashboardPage() {
     }
   }, [profile, router]);
 
-  // Fetch medical data from all APIs
   useEffect(() => {
-    const fetchMedicalData = async () => {
-      if (!user) return;
-
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // Fetch data from all medical categories
-        const [
-          medicationsRes,
-          allergiesRes,
-          examsRes,
-          diseasesRes,
-          consultationsRes
-        ] = await Promise.all([
-          fetch('/api/medications'),
-          fetch('/api/allergies'),
-          fetch('/api/exams'),
-          fetch('/api/diseases'),
-          fetch('/api/consultations')
-        ]);
-
-        const [
-          medicationsData,
-          allergiesData,
-          examsData,
-          diseasesData,
-          consultationsData
-        ] = await Promise.all([
-          medicationsRes.json(),
-          allergiesRes.json(),
-          examsRes.json(),
-          diseasesRes.json(),
-          consultationsRes.json()
-        ]);
-
-        setMedicalData({
-          medications: medicationsData.medications || [],
-          allergies: allergiesData.allergies || [],
-          exams: examsData.exams || [],
-          diseases: diseasesData.diseases || [],
-          consultations: consultationsData.consultations || []
-        });
-      } catch (error) {
-        console.error('Error fetching medical data:', error);
-        setError('Failed to load medical data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchMedicalData();
-  }, [user]);
+  }, [fetchMedicalData]);
 
   // Generic delete function
   const deleteItem = async (id: string, category: string, name: string) => {
@@ -212,8 +223,8 @@ export default function DashboardPage() {
 
   const handleNovaEntradaSubmit = (data: { category: string; content: string }) => {
     console.log('Nova entrada submitted:', data);
-    // TODO: Implement actual submission logic
-    // For now, just log the data
+    // Note: This is called when form is submitted, not when processing completes
+    // Data refresh happens in handleProcessingComplete after AI processing succeeds
   };
 
   const formatDate = (dateString: string | null) => {
@@ -997,6 +1008,14 @@ export default function DashboardPage() {
             open={isNovaEntradaModalOpen}
             onClose={() => setIsNovaEntradaModalOpen(false)}
             onSubmit={handleNovaEntradaSubmit}
+            onProcessingComplete={handleProcessingComplete}
+          />
+
+          {/* Processing Results Modal */}
+          <ProcessingResultsModal
+            open={isProcessingResultsModalOpen}
+            onClose={() => setIsProcessingResultsModalOpen(false)}
+            processingResult={processingResult}
           />
         </>
       ) : (
