@@ -103,12 +103,22 @@ export class AIProcessorClient {
     });
 
     try {
+      // Prepare headers - only include Authorization if we have a valid API key
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      // Only add Authorization header if we have a valid API key
+      if (this.apiKey && this.apiKey.trim() !== '') {
+        headers['Authorization'] = `Bearer ${this.apiKey}`;
+        console.log('🔑 [AI Client] Including Authorization header');
+      } else {
+        console.log('⚠️ [AI Client] No API key - sending request without Authorization header');
+      }
+
       const response = await fetch(`${this.baseURL}/api/ai/process`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
+        headers,
         body: JSON.stringify(request),
         signal: AbortSignal.timeout(this.timeout),
       });
@@ -172,11 +182,10 @@ export class AIProcessorClient {
     });
 
     try {
+      // Don't send Authorization header for health check since it's a public endpoint
       const response = await fetch(healthUrl, {
         method: 'GET',
-        headers: this.apiKey ? {
-          'Authorization': `Bearer ${this.apiKey}`,
-        } : {},
+        headers: {}, // Remove authorization header for public health endpoint
         signal: AbortSignal.timeout(10000), // Increased to 10 seconds
       });
 
@@ -223,11 +232,10 @@ export class AIProcessorClient {
     });
 
     try {
+      // Don't send Authorization header for health check since it's a public endpoint
       const response = await fetch(healthUrl, {
         method: 'GET',
-        headers: this.apiKey ? {
-          'Authorization': `Bearer ${this.apiKey}`,
-        } : {},
+        headers: {}, // Remove authorization header for public health endpoint
         signal: AbortSignal.timeout(5000),
       });
 
