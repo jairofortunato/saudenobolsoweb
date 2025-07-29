@@ -77,8 +77,14 @@ export class AIProcessorClient {
     this.apiKey = process.env.AI_PROCESSOR_API_KEY || process.env.NEXT_PUBLIC_AI_PROCESSOR_API_KEY || '';
     this.timeout = parseInt(process.env.AI_PROCESSOR_TIMEOUT || '30000');
 
+    console.log('🤖 [AI Client] Initializing AI Processor Client:', {
+      baseURL: this.baseURL,
+      hasApiKey: !!this.apiKey,
+      timeout: this.timeout
+    });
+
     if (!this.apiKey) {
-      console.warn('AI_PROCESSOR_API_KEY not configured - AI processing may fail');
+      console.warn('⚠️ [AI Client] AI_PROCESSOR_API_KEY not configured - AI processing may fail');
     }
   }
 
@@ -86,6 +92,16 @@ export class AIProcessorClient {
    * Process medical text using the AI processor backend
    */
   async processText(request: AIProcessorRequest): Promise<AIProcessorResponse> {
+    console.log('📤 [AI Client] Processing text request:', {
+      url: `${this.baseURL}/api/ai/process`,
+      textLength: request.text.length,
+      patient_id: request.patient_id,
+      created_by: request.created_by,
+      submit_to_db: request.submit_to_db,
+      category: request.category,
+      hasApiKey: !!this.apiKey
+    });
+
     try {
       const response = await fetch(`${this.baseURL}/api/ai/process`, {
         method: 'POST',
@@ -97,21 +113,44 @@ export class AIProcessorClient {
         signal: AbortSignal.timeout(this.timeout),
       });
 
+      console.log('📥 [AI Client] Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.log('❌ [AI Client] Error response data:', errorData);
         throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       const result = await response.json();
+      console.log('✅ [AI Client] Success response:', {
+        success: result.success,
+        hasData: !!result.data,
+        processing_time: result.processing_time,
+        dataKeys: result.data ? Object.keys(result.data) : []
+      });
+      
       return result;
     } catch (error) {
-      console.error('AI Processor connection error:', error);
+      console.error('💥 [AI Client] Connection error:', error);
       
       if (error instanceof Error) {
+        console.log('🔍 [AI Client] Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack?.substring(0, 300)
+        });
+
         if (error.name === 'AbortError') {
+          console.log('⏰ [AI Client] Request timeout detected');
           throw new Error('AI processing timeout - please try again with shorter text');
         }
         if (error.message.includes('fetch')) {
+          console.log('🔌 [AI Client] Fetch error detected');
           throw new Error('Unable to connect to AI processor service - please try again later');
         }
         throw new Error(`AI Processor error: ${error.message}`);
@@ -125,8 +164,15 @@ export class AIProcessorClient {
    * Check if the AI processor service is healthy and available
    */
   async healthCheck(): Promise<boolean> {
+    const healthUrl = `${this.baseURL}/health`;
+    console.log('🏥 [AI Client] Starting health check:', {
+      url: healthUrl,
+      hasApiKey: !!this.apiKey,
+      timeout: 10000
+    });
+
     try {
-      const response = await fetch(`${this.baseURL}/health`, {
+      const response = await fetch(healthUrl, {
         method: 'GET',
         headers: this.apiKey ? {
           'Authorization': `Bearer ${this.apiKey}`,
@@ -134,9 +180,34 @@ export class AIProcessorClient {
         signal: AbortSignal.timeout(10000), // Increased to 10 seconds
       });
 
+      console.log('🏥 [AI Client] Health check response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
+      if (response.ok) {
+        try {
+          const healthData = await response.json();
+          console.log('✅ [AI Client] Health check data:', healthData);
+        } catch (jsonError) {
+          console.log('⚠️ [AI Client] Health check response not JSON, but status OK');
+        }
+      }
+
       return response.ok;
     } catch (error) {
-      console.warn('AI Processor health check failed:', error);
+      console.warn('❌ [AI Client] Health check failed:', error);
+      
+      if (error instanceof Error) {
+        console.log('🔍 [AI Client] Health check error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack?.substring(0, 300)
+        });
+      }
+      
       return false;
     }
   }
@@ -145,8 +216,14 @@ export class AIProcessorClient {
    * Get detailed health information from the AI processor
    */
   async getHealthInfo(): Promise<AIProcessorHealthResponse | null> {
+    const healthUrl = `${this.baseURL}/health`;
+    console.log('🏥 [AI Client] Getting health info:', {
+      url: healthUrl,
+      hasApiKey: !!this.apiKey
+    });
+
     try {
-      const response = await fetch(`${this.baseURL}/health`, {
+      const response = await fetch(healthUrl, {
         method: 'GET',
         headers: this.apiKey ? {
           'Authorization': `Bearer ${this.apiKey}`,
@@ -154,12 +231,21 @@ export class AIProcessorClient {
         signal: AbortSignal.timeout(5000),
       });
 
+      console.log('🏥 [AI Client] Health info response:', {
+        status: response.status,
+        ok: response.ok
+      });
+
       if (response.ok) {
-        return await response.json();
+        const healthData = await response.json();
+        console.log('✅ [AI Client] Health info data:', healthData);
+        return healthData;
       }
+      
+      console.log('❌ [AI Client] Health info request failed with status:', response.status);
       return null;
     } catch (error) {
-      console.warn('Failed to get AI Processor health info:', error);
+      console.warn('❌ [AI Client] Failed to get AI Processor health info:', error);
       return null;
     }
   }
@@ -168,6 +254,8 @@ export class AIProcessorClient {
    * Test the AI processor with sample data
    */
   async testProcessing(): Promise<{ success: boolean; message: string; details?: any }> {
+    console.log('🧪 [AI Client] Starting test processing');
+    
     try {
       const testRequest: AIProcessorRequest = {
         text: 'Tomo Losartan 50mg uma vez ao dia para pressão alta desde novembro de 2023',
@@ -177,7 +265,15 @@ export class AIProcessorClient {
         category: 'medications'
       };
 
+      console.log('🧪 [AI Client] Test request prepared:', testRequest);
+
       const result = await this.processText(testRequest);
+      
+      console.log('🧪 [AI Client] Test result:', {
+        success: result.success,
+        hasData: !!result.data,
+        processing_time: result.processing_time
+      });
       
       if (result.success) {
         return {
@@ -197,6 +293,7 @@ export class AIProcessorClient {
         };
       }
     } catch (error) {
+      console.error('💥 [AI Client] Test processing failed:', error);
       return {
         success: false,
         message: `AI Processor test error: ${error instanceof Error ? error.message : 'Unknown error'}`,
