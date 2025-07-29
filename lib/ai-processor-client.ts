@@ -73,7 +73,9 @@ export class AIProcessorClient {
   private timeout: number;
 
   constructor() {
-    this.baseURL = process.env.AI_PROCESSOR_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'http://localhost:8000';
+    // Remove trailing slash from baseURL to prevent double slashes
+    const rawBaseURL = process.env.AI_PROCESSOR_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'http://localhost:8000';
+    this.baseURL = rawBaseURL.replace(/\/+$/, ''); // Remove trailing slashes
     this.apiKey = process.env.AI_PROCESSOR_API_KEY || process.env.NEXT_PUBLIC_AI_PROCESSOR_API_KEY || '';
     this.timeout = parseInt(process.env.AI_PROCESSOR_TIMEOUT || '30000');
 
