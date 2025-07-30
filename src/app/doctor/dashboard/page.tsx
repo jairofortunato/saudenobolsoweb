@@ -8,8 +8,7 @@ import {
   Loading,
   Button,
   NovaEntradaModal,
-  CreatePatientModal,
-  ProcessingResultsModal
+  CreatePatientModal
 } from '../../../../components';
 import { PatientSearch } from '../../../../components/doctor/PatientSearch';
 import { PatientDisplay } from '../../../../components/doctor/PatientDisplay';
@@ -52,7 +51,6 @@ export default function DoctorDashboardPage() {
   // NovaEntradaModal state
   const [isNovaEntradaModalOpen, setIsNovaEntradaModalOpen] = useState(false);
   const [processingResult, setProcessingResult] = useState<any>(null);
-  const [isProcessingResultsModalOpen, setIsProcessingResultsModalOpen] = useState(false);
   
   // CreatePatientModal state
   const [isCreatePatientModalOpen, setIsCreatePatientModalOpen] = useState(false);
@@ -82,9 +80,9 @@ export default function DoctorDashboardPage() {
   };
 
   const handleProcessingComplete = (result: any) => {
-    console.log('Processing completed:', result);
     setProcessingResult(result);
-    setIsProcessingResultsModalOpen(true);
+    // You could show a success notification here
+    console.log('Processing completed:', result);
   };
 
   const openNovaEntradaModal = () => {
@@ -204,13 +202,6 @@ export default function DoctorDashboardPage() {
           open={isCreatePatientModalOpen}
           onClose={closeCreatePatientModal}
           onPatientCreated={handlePatientCreated}
-        />
-
-        {/* ProcessingResultsModal */}
-        <ProcessingResultsModal
-          open={isProcessingResultsModalOpen}
-          onClose={() => setIsProcessingResultsModalOpen(false)}
-          processingResult={processingResult}
         />
       </div>
     </DashboardLayout>

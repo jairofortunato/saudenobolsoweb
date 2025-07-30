@@ -31,9 +31,8 @@ export async function GET(_request: NextRequest) {
       );
     }
 
-    // For patients, get their own allergies
-    // For doctors, they would need to specify patient_id (for future implementation)
-    const patient_id = profile.role === 'patient' ? (profile.profile_id || profile.id) : (profile.profile_id || profile.id);
+    // Handle both old and new schema - use profile_id if available, otherwise use id
+    const patient_id = profile.profile_id || profile.id;
 
     // Get allergies for the patient
     const { data: allergies, error: allergiesError } = await supabase
@@ -119,7 +118,7 @@ export async function POST(request: NextRequest) {
     
     if (profile.role === 'patient') {
       // Patients can only create entries for themselves
-      targetPatientId = profile.id;
+      targetPatientId = profile.profile_id || profile.id;
     } else if (profile.role === 'doctor') {
       // Doctors can create entries for specified patients
       if (!patient_id) {
@@ -143,7 +142,7 @@ export async function POST(request: NextRequest) {
       severity: severity || null,
       reaction: reaction?.trim() || null,
       notes: notes?.trim() || null,
-              created_by: profile.profile_id || profile.id,
+      created_by: profile.profile_id || profile.id,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -175,7 +174,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}
 
 // DELETE /api/allergies - Delete an allergy entry
 export async function DELETE(request: NextRequest) {
@@ -231,17 +230,20 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Get the current user's profile ID (handle both schemas)
+    const currentUserProfileId = profile.profile_id || profile.id;
+
     // Check if user has permission to delete this allergy
     // Patients can only delete their own allergies
     // Doctors can delete allergies they created
-          if (profile.role === 'patient' && allergy.patient_id !== (profile.profile_id || profile.id)) {
+    if (profile.role === 'patient' && allergy.patient_id !== currentUserProfileId) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
       );
     }
 
-          if (profile.role === 'doctor' && allergy.created_by !== (profile.profile_id || profile.id)) {
+    if (profile.role === 'doctor' && allergy.created_by !== currentUserProfileId) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
@@ -274,7 +276,7 @@ export async function DELETE(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}
 
 // PUT /api/allergies - Update an allergy entry
 export async function PUT(request: NextRequest) {
@@ -347,17 +349,20 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Get the current user's profile ID (handle both schemas)
+    const currentUserProfileId = profile.profile_id || profile.id;
+
     // Check if user has permission to update this allergy
     // Patients can only update their own allergies
     // Doctors can update allergies they created
-          if (profile.role === 'patient' && existingAllergy.patient_id !== (profile.profile_id || profile.id)) {
+    if (profile.role === 'patient' && existingAllergy.patient_id !== currentUserProfileId) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
       );
     }
 
-          if (profile.role === 'doctor' && existingAllergy.created_by !== (profile.profile_id || profile.id)) {
+    if (profile.role === 'doctor' && existingAllergy.created_by !== currentUserProfileId) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }

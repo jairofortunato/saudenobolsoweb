@@ -186,12 +186,16 @@ export default function DashboardPage() {
       const result = await response.json();
       const updatedItem = result[editCategory.slice(0, -1)]; // Remove 's' from plural
       
-      // Update local state
+      // Update local state - ensure the id is preserved
       setMedicalData(prev => ({
         ...prev,
-        [editCategory]: prev[editCategory as keyof MedicalData].map((item: any) => 
-          item.id === editing ? updatedItem : item
-        )
+        [editCategory]: prev[editCategory as keyof MedicalData].map((item: any) => {
+          if (item.id === editing) {
+            // Ensure the updated item has the id field
+            return { ...item, ...updatedItem, id: editing };
+          }
+          return item;
+        })
       }));
       
       setEditing(null);
@@ -324,7 +328,7 @@ export default function DashboardPage() {
                       <CardContent>
                         {medicalData.allergies.length > 0 ? (
                           <div className="flex flex-wrap gap-2 mt-1">
-                            {medicalData.allergies.map((allergy) => (
+                            {medicalData.allergies.filter(allergy => allergy && allergy.id).map((allergy) => (
                               <BadgeToggleCard
                                 key={allergy.id}
                                 id={allergy.id}
@@ -433,7 +437,7 @@ export default function DashboardPage() {
                       <CardContent>
                         {medicalData.diseases.length > 0 ? (
                           <div className="flex flex-wrap gap-2 mt-1">
-                            {medicalData.diseases.map((disease) => (
+                            {medicalData.diseases.filter(disease => disease && disease.id).map((disease) => (
                               <BadgeToggleCard
                                 key={disease.id}
                                 id={disease.id}
@@ -582,7 +586,7 @@ export default function DashboardPage() {
                       <CardContent>
                         {medicalData.medications.filter(m => m.is_active).length > 0 ? (
                           <div className="flex flex-wrap gap-2 mt-1">
-                            {medicalData.medications.filter(m => m.is_active).map((medication) => (
+                            {medicalData.medications.filter(m => m.is_active && m && m.id).map((medication) => (
                               <BadgeToggleCard
                                 key={medication.id}
                                 id={medication.id}
@@ -717,7 +721,7 @@ export default function DashboardPage() {
                       <CardContent>
                         {medicalData.exams.length > 0 ? (
                           <div className="flex flex-wrap gap-2 mt-1">
-                            {medicalData.exams.map((exam) => (
+                            {medicalData.exams.filter(exam => exam && exam.id).map((exam) => (
                               <BadgeToggleCard
                                 key={exam.id}
                                 id={exam.id}
@@ -858,7 +862,7 @@ export default function DashboardPage() {
                       <CardContent>
                         {medicalData.consultations.length > 0 ? (
                           <div className="flex flex-wrap gap-2 mt-1">
-                            {medicalData.consultations.map((consultation) => (
+                            {medicalData.consultations.filter(consultation => consultation && consultation.id).map((consultation) => (
                               <BadgeToggleCard
                                 key={consultation.id}
                                 id={consultation.id}

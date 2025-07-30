@@ -225,17 +225,20 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Get the current user's profile ID (handle both schemas)
+    const currentUserProfileId = profile.profile_id || profile.id;
+
     // Check if user has permission to delete this medication
     // Patients can only delete their own medications
     // Doctors can delete medications they created
-          if (profile.role === 'patient' && medication.patient_id !== (profile.profile_id || profile.id)) {
+    if (profile.role === 'patient' && medication.patient_id !== currentUserProfileId) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
       );
     }
 
-          if (profile.role === 'doctor' && medication.created_by !== (profile.profile_id || profile.id)) {
+    if (profile.role === 'doctor' && medication.created_by !== currentUserProfileId) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
@@ -332,17 +335,20 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Get the current user's profile ID (handle both schemas)
+    const currentUserProfileId = profile.profile_id || profile.id;
+
     // Check if user has permission to update this medication
     // Patients can only update their own medications
     // Doctors can update medications they created
-          if (profile.role === 'patient' && existingMedication.patient_id !== (profile.profile_id || profile.id)) {
+    if (profile.role === 'patient' && existingMedication.patient_id !== currentUserProfileId) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
       );
     }
 
-          if (profile.role === 'doctor' && existingMedication.created_by !== (profile.profile_id || profile.id)) {
+    if (profile.role === 'doctor' && existingMedication.created_by !== currentUserProfileId) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
@@ -356,7 +362,7 @@ export async function PUT(request: NextRequest) {
       frequency: frequency?.trim() || null,
       start_date: start_date || null,
       end_date: end_date || null,
-      is_active: is_active !== undefined ? is_active : existingMedication.is_active,
+      is_active: is_active !== undefined ? is_active : true,
       notes: notes?.trim() || null,
       updated_at: new Date().toISOString()
     };

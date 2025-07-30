@@ -231,17 +231,20 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Get the current user's profile ID (handle both schemas)
+    const currentUserProfileId = profile.profile_id || profile.id;
+
     // Check if user has permission to delete this exam
     // Patients can only delete their own exams
     // Doctors can delete exams they created
-          if (profile.role === 'patient' && exam.patient_id !== (profile.profile_id || profile.id)) {
+    if (profile.role === 'patient' && exam.patient_id !== currentUserProfileId) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
       );
     }
 
-          if (profile.role === 'doctor' && exam.created_by !== (profile.profile_id || profile.id)) {
+    if (profile.role === 'doctor' && exam.created_by !== currentUserProfileId) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
@@ -307,7 +310,7 @@ export async function PUT(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { id, name, exam_date, result, file_url, doctor_name, notes } = body;
+    const { id, name, exam_date, doctor_name, result, notes, file_url } = body;
 
     // Validate required fields
     if (!id) {
@@ -320,13 +323,6 @@ export async function PUT(request: NextRequest) {
     if (!name || name.trim() === '') {
       return NextResponse.json(
         { error: 'Exam name is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!exam_date) {
-      return NextResponse.json(
-        { error: 'Exam date is required' },
         { status: 400 }
       );
     }
@@ -345,17 +341,20 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Get the current user's profile ID (handle both schemas)
+    const currentUserProfileId = profile.profile_id || profile.id;
+
     // Check if user has permission to update this exam
     // Patients can only update their own exams
     // Doctors can update exams they created
-          if (profile.role === 'patient' && existingExam.patient_id !== (profile.profile_id || profile.id)) {
+    if (profile.role === 'patient' && existingExam.patient_id !== currentUserProfileId) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
       );
     }
 
-          if (profile.role === 'doctor' && existingExam.created_by !== (profile.profile_id || profile.id)) {
+    if (profile.role === 'doctor' && existingExam.created_by !== currentUserProfileId) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
@@ -365,11 +364,11 @@ export async function PUT(request: NextRequest) {
     // Prepare updated exam data
     const updatedExamData = {
       name: name.trim(),
-      exam_date: exam_date,
-      result: result?.trim() || null,
-      file_url: file_url?.trim() || null,
+      exam_date: exam_date || null,
       doctor_name: doctor_name?.trim() || null,
+      result: result?.trim() || null,
       notes: notes?.trim() || null,
+      file_url: file_url?.trim() || null,
       updated_at: new Date().toISOString()
     };
 

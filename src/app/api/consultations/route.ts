@@ -233,17 +233,20 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // Get the current user's profile ID (handle both schemas)
+    const currentUserProfileId = profile.profile_id || profile.id;
+
     // Check if user has permission to delete this consultation
     // Patients can only delete their own consultations
     // Doctors can delete consultations they created
-          if (profile.role === 'patient' && consultation.patient_id !== (profile.profile_id || profile.id)) {
+    if (profile.role === 'patient' && consultation.patient_id !== currentUserProfileId) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
       );
     }
 
-          if (profile.role === 'doctor' && consultation.created_by !== (profile.profile_id || profile.id)) {
+    if (profile.role === 'doctor' && consultation.created_by !== currentUserProfileId) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
@@ -326,13 +329,6 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    if (!consultation_date) {
-      return NextResponse.json(
-        { error: 'Consultation date is required' },
-        { status: 400 }
-      );
-    }
-
     // First, verify the consultation exists and belongs to the user
     const { data: existingConsultation, error: fetchError } = await supabase
       .from('consultations')
@@ -347,17 +343,20 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Get the current user's profile ID (handle both schemas)
+    const currentUserProfileId = profile.profile_id || profile.id;
+
     // Check if user has permission to update this consultation
     // Patients can only update their own consultations
     // Doctors can update consultations they created
-          if (profile.role === 'patient' && existingConsultation.patient_id !== (profile.profile_id || profile.id)) {
+    if (profile.role === 'patient' && existingConsultation.patient_id !== currentUserProfileId) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
       );
     }
 
-          if (profile.role === 'doctor' && existingConsultation.created_by !== (profile.profile_id || profile.id)) {
+    if (profile.role === 'doctor' && existingConsultation.created_by !== currentUserProfileId) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
@@ -368,7 +367,7 @@ export async function PUT(request: NextRequest) {
     const updatedConsultationData = {
       doctor_name: doctor_name.trim(),
       specialty: specialty?.trim() || null,
-      consultation_date: consultation_date,
+      consultation_date: consultation_date || null,
       reason: reason?.trim() || null,
       diagnosis: diagnosis?.trim() || null,
       treatment: treatment?.trim() || null,
