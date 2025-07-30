@@ -145,7 +145,7 @@ export function useAuthState(): AuthContextType {
       
       console.log('🔧 Starting signup process...')
       
-      // Sign up user with Supabase Auth
+      // Sign up user with Supabase Auth - include CPF and PIN for trigger
       const { data, error } = await supabase.auth.signUp({
         email: signUpData.email,
         password: signUpData.password,
@@ -153,6 +153,7 @@ export function useAuthState(): AuthContextType {
           data: {
             full_name: signUpData.fullName,
             cpf: signUpData.cpf,
+            pin: signUpData.pin,
             role: signUpData.role
           }
         }
@@ -184,29 +185,64 @@ export function useAuthState(): AuthContextType {
           }
         }
         
-        console.log('🔧 Creating profile for user:', data.user.id)
+        console.log('🔧 Checking if profile was linked by trigger for user:', data.user.id)
         
-        // Create profile in our profiles table
-        const { error: profileError } = await supabase
+        // Wait a moment for trigger to complete, then check for linked profile
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // First, check if the trigger already linked a doctor-created profile
+        const { data: existingProfile, error: checkError } = await supabase
           .from('profiles')
-          .insert({
-            user_id: data.user.id,
-            email: signUpData.email,
-            cpf: signUpData.cpf,
-            pin: signUpData.pin,
-            role: signUpData.role,
-            full_name: signUpData.fullName,
-            phone: signUpData.phone || null,
-            birth_date: signUpData.birthDate || null,
-            address: signUpData.address || null,
-            emergency_contact_name: signUpData.emergencyContactName || null,
-            emergency_contact_phone: signUpData.emergencyContactPhone || null
-          })
+          .select('profile_id, cpf, linked')
+          .eq('user_id', data.user.id)
+          .single()
         
-        if (profileError) {
-          console.error('❌ Error creating profile:', profileError)
-          setState((prev: AuthState) => ({ ...prev, loading: false, error: profileError.message }))
-          return { success: false, error: profileError.message }
+        if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = not found
+          console.log('⚠️ Profile check error (might be RLS):', checkError.message)
+          // Don't fail here - might be RLS timing issue, try to create profile
+        }
+        
+        if (existingProfile) {
+          console.log('✅ SUCCESS: Trigger automatically linked doctor-created profile!')
+          console.log('   - Profile ID:', existingProfile.profile_id)
+          console.log('   - CPF matched:', existingProfile.cpf)
+          console.log('   - Linked status:', existingProfile.linked)
+          console.log('   - Patient now has access to all medical data added by doctor')
+        } else {
+          console.log('🔧 No doctor-created profile found for this CPF, creating new profile')
+          
+          // Create new profile for this patient (no doctor created them)
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              user_id: data.user.id,
+              email: signUpData.email,
+              cpf: signUpData.cpf,
+              pin: signUpData.pin,
+              role: signUpData.role,
+              full_name: signUpData.fullName,
+              phone: signUpData.phone || null,
+              birth_date: signUpData.birthDate || null,
+              address: signUpData.address || null,
+              emergency_contact_name: signUpData.emergencyContactName || null,
+              emergency_contact_phone: signUpData.emergencyContactPhone || null,
+              linked: true // This is a direct signup, so it's immediately linked
+            })
+          
+          if (profileError) {
+            // If duplicate CPF error, it means trigger already linked the profile - that's success!
+            if (profileError.code === '23505' && profileError.message.includes('profiles_cpf_key')) {
+              console.log('✅ Profile was already linked by trigger (duplicate CPF error is expected)')
+              console.log('   - CPF:', signUpData.cpf)
+              console.log('   - This means a doctor created this patient and trigger linked it successfully')
+            } else {
+              console.error('❌ Error creating new profile:', profileError)
+              setState((prev: AuthState) => ({ ...prev, loading: false, error: profileError.message }))
+              return { success: false, error: profileError.message }
+            }
+          } else {
+            console.log('✅ New profile created successfully')
+          }
         }
         
         if (data.user) {

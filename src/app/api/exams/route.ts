@@ -33,7 +33,7 @@ export async function GET(_request: NextRequest) {
 
     // For patients, get their own exams
     // For doctors, they would need to specify patient_id (for future implementation)
-    const patient_id = profile.role === 'patient' ? profile.id : profile.id;
+    const patient_id = profile.role === 'patient' ? (profile.profile_id || profile.id) : (profile.profile_id || profile.id);
 
     // Get exams for the patient
     const { data: exams, error: examsError } = await supabase
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
       file_url: file_url?.trim() || null,
       doctor_name: doctor_name?.trim() || null,
       notes: notes?.trim() || null,
-      created_by: profile.id,
+              created_by: profile.profile_id || profile.id,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -234,14 +234,14 @@ export async function DELETE(request: NextRequest) {
     // Check if user has permission to delete this exam
     // Patients can only delete their own exams
     // Doctors can delete exams they created
-    if (profile.role === 'patient' && exam.patient_id !== profile.id) {
+          if (profile.role === 'patient' && exam.patient_id !== (profile.profile_id || profile.id)) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
       );
     }
 
-    if (profile.role === 'doctor' && exam.created_by !== profile.id) {
+          if (profile.role === 'doctor' && exam.created_by !== (profile.profile_id || profile.id)) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
@@ -348,14 +348,14 @@ export async function PUT(request: NextRequest) {
     // Check if user has permission to update this exam
     // Patients can only update their own exams
     // Doctors can update exams they created
-    if (profile.role === 'patient' && existingExam.patient_id !== profile.id) {
+          if (profile.role === 'patient' && existingExam.patient_id !== (profile.profile_id || profile.id)) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }
       );
     }
 
-    if (profile.role === 'doctor' && existingExam.created_by !== profile.id) {
+          if (profile.role === 'doctor' && existingExam.created_by !== (profile.profile_id || profile.id)) {
       return NextResponse.json(
         { error: 'Permission denied' },
         { status: 403 }

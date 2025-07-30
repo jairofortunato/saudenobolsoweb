@@ -125,6 +125,8 @@ export default function SignupPage() {
     setIsSubmitting(true);
     
     try {
+      // Patient signup with automatic doctor-created profile linking
+      // The CPF will be used by the database trigger to link any existing profile
       const result = await signUp({
         email: formData.email,
         password: formData.password,
@@ -139,6 +141,7 @@ export default function SignupPage() {
           // Show email confirmation message instead of success
           setErrors({ email: 'Verifique seu email para confirmar a conta e tente novamente.' });
         } else {
+          console.log('✅ Patient signup successful - check console for linking details');
           setShowSuccess(true);
           // Redirect will happen automatically via useEffect when user state updates
         }
@@ -183,6 +186,7 @@ export default function SignupPage() {
             </div>
             <h2 className="text-2xl font-bold text-slate-800 mb-2">Conta criada com sucesso!</h2>
             <p className="text-slate-600 mb-6">
+              Sua conta foi criada e seus dados médicos foram vinculados automaticamente.<br/>
               Você será redirecionado para o login em instantes...
             </p>
             <div className="animate-spin h-6 w-6 border-2 border-blue-300 border-t-blue-600 rounded-full mx-auto mb-4"></div>

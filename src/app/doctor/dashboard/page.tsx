@@ -7,7 +7,9 @@ import { useAuth } from '../../../../hooks/useAuth';
 import { 
   Loading,
   Button,
-  NovaEntradaModal
+  NovaEntradaModal,
+  CreatePatientModal,
+  ProcessingResultsModal
 } from '../../../../components';
 import { PatientSearch } from '../../../../components/doctor/PatientSearch';
 import { PatientDisplay } from '../../../../components/doctor/PatientDisplay';
@@ -50,6 +52,10 @@ export default function DoctorDashboardPage() {
   // NovaEntradaModal state
   const [isNovaEntradaModalOpen, setIsNovaEntradaModalOpen] = useState(false);
   const [processingResult, setProcessingResult] = useState<any>(null);
+  const [isProcessingResultsModalOpen, setIsProcessingResultsModalOpen] = useState(false);
+  
+  // CreatePatientModal state
+  const [isCreatePatientModalOpen, setIsCreatePatientModalOpen] = useState(false);
 
   // Redirect if not a doctor
   useEffect(() => {
@@ -76,9 +82,9 @@ export default function DoctorDashboardPage() {
   };
 
   const handleProcessingComplete = (result: any) => {
-    setProcessingResult(result);
-    // You could show a success notification here
     console.log('Processing completed:', result);
+    setProcessingResult(result);
+    setIsProcessingResultsModalOpen(true);
   };
 
   const openNovaEntradaModal = () => {
@@ -88,6 +94,19 @@ export default function DoctorDashboardPage() {
   const closeNovaEntradaModal = () => {
     setIsNovaEntradaModalOpen(false);
     setProcessingResult(null);
+  };
+
+  const openCreatePatientModal = () => {
+    setIsCreatePatientModalOpen(true);
+  };
+
+  const closeCreatePatientModal = () => {
+    setIsCreatePatientModalOpen(false);
+  };
+
+  const handlePatientCreated = (patient: any) => {
+    console.log('Patient created:', patient);
+    // You could show a success notification here or refresh patient list
   };
 
   if (loading || !profile) {
@@ -118,6 +137,14 @@ export default function DoctorDashboardPage() {
           </h2>
           <div className="flex flex-wrap gap-3">
             <Button
+              variant="secondary"
+              onClick={openCreatePatientModal}
+              className="flex items-center gap-2"
+            >
+              <span>👤</span>
+              <span>Criar Paciente</span>
+            </Button>
+            <Button
               variant="primary"
               onClick={openNovaEntradaModal}
               className="flex items-center gap-2"
@@ -135,7 +162,7 @@ export default function DoctorDashboardPage() {
             </Button>
           </div>
           <p className="text-sm text-slate-600 mt-3">
-            💡 Use "Nova Entrada Médica" para adicionar informações médicas para um paciente via PIN
+            💡 Use "Criar Paciente" para cadastrar um novo paciente e "Nova Entrada Médica" para adicionar informações médicas via PIN
           </p>
         </div>
 
@@ -170,6 +197,20 @@ export default function DoctorDashboardPage() {
           onClose={closeNovaEntradaModal}
           onSubmit={handleNovaEntradaSubmit}
           onProcessingComplete={handleProcessingComplete}
+        />
+
+        {/* CreatePatientModal */}
+        <CreatePatientModal
+          open={isCreatePatientModalOpen}
+          onClose={closeCreatePatientModal}
+          onPatientCreated={handlePatientCreated}
+        />
+
+        {/* ProcessingResultsModal */}
+        <ProcessingResultsModal
+          open={isProcessingResultsModalOpen}
+          onClose={() => setIsProcessingResultsModalOpen(false)}
+          processingResult={processingResult}
         />
       </div>
     </DashboardLayout>

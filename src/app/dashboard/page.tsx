@@ -13,7 +13,9 @@ import {
   NovaEntradaModal,
   ProcessingResultsModal,
   Loading,
-  BadgeToggleCard
+  BadgeToggleCard,
+  RawMedicalEntriesCard,
+  ExportInfo
 } from '../../../components';
 import { getDisplayName } from '../../../lib/auth-utils';
 import { Medication, Allergy, Exam, Disease, Consultation } from '../../../types/database';
@@ -328,6 +330,10 @@ export default function DashboardPage() {
                                 id={allergy.id}
                                 title={allergy.name}
                                 variant="orange"
+                                category="Alergia"
+                                createdBy={allergy.created_by || "Sistema"}
+                                createdAt={allergy.created_at}
+                                description={allergy.reaction ? `Reação: ${allergy.reaction}` : undefined}
                                 isEditing={editing === allergy.id}
                                 isDeleting={deleting === allergy.id}
                                 onEdit={() => startEditing(allergy, 'allergies')}
@@ -433,6 +439,10 @@ export default function DashboardPage() {
                                 id={disease.id}
                                 title={disease.name}
                                 variant="red"
+                                category="Doença"
+                                createdBy={disease.created_by || "Sistema"}
+                                createdAt={disease.created_at}
+                                description={disease.description ? `Descrição: ${disease.description}` : undefined}
                                 isEditing={editing === disease.id}
                                 isDeleting={deleting === disease.id}
                                 onEdit={() => startEditing(disease, 'diseases')}
@@ -534,7 +544,13 @@ export default function DashboardPage() {
                                           placeholder="Observações adicionais"
                                         />
                                       ) : (
-                                        <p className="text-sm text-slate-600 mt-1">{disease.notes}</p>
+                                        <div className="mt-1">
+                                          {disease.notes?.split('\n').map((note, index) => (
+                                            <div key={index} className="text-sm text-slate-600 mb-1">
+                                              <span className="text-red-600 font-medium">•</span> {note.trim()}
+                                            </div>
+                                          ))}
+                                        </div>
                                       )}
                                     </div>
                                   )}
@@ -572,6 +588,10 @@ export default function DashboardPage() {
                                 id={medication.id}
                                 title={medication.name}
                                 variant="blue"
+                                category="Medicamento"
+                                createdBy={medication.created_by || "Sistema"}
+                                createdAt={medication.created_at}
+                                description={medication.dosage ? `Dosagem: ${medication.dosage}` : undefined}
                                 isEditing={editing === medication.id}
                                 isDeleting={deleting === medication.id}
                                 onEdit={() => startEditing(medication, 'medications')}
@@ -703,6 +723,10 @@ export default function DashboardPage() {
                                 id={exam.id}
                                 title={exam.name}
                                 variant="purple"
+                                category="Exame"
+                                createdBy={exam.created_by || "Sistema"}
+                                createdAt={exam.created_at}
+                                description={exam.doctor_name ? `Médico: Dr. ${exam.doctor_name}` : undefined}
                                 isEditing={editing === exam.id}
                                 isDeleting={deleting === exam.id}
                                 onEdit={() => startEditing(exam, 'exams')}
@@ -840,6 +864,10 @@ export default function DashboardPage() {
                                 id={consultation.id}
                                 title={`Dr. ${consultation.doctor_name}`}
                                 variant="green"
+                                category="Consulta"
+                                createdBy={consultation.created_by || "Sistema"}
+                                createdAt={consultation.created_at}
+                                description={consultation.specialty ? `Especialidade: ${consultation.specialty}` : undefined}
                                 isEditing={editing === consultation.id}
                                 isDeleting={deleting === consultation.id}
                                 onEdit={() => startEditing(consultation, 'consultations')}
@@ -981,6 +1009,12 @@ export default function DashboardPage() {
                         )}
                       </CardContent>
                     </Card>
+
+                    {/* Export Medical Information Card */}
+                    <ExportInfo />
+
+                    {/* Raw Medical Entries Card */}
+                    <RawMedicalEntriesCard />
                   </>
                 )}
               </>

@@ -57,7 +57,16 @@ export async function POST(request: NextRequest) {
       .eq('role', 'patient')
       .single();
 
+    console.log('🔍 [Patient Search] Query result:', { 
+      hasPatient: !!patient, 
+      patientError: !!patientError, 
+      patientFields: patient ? Object.keys(patient) : 'none',
+      patientId: patient?.id,
+      profileId: patient?.profile_id
+    });
+
     if (patientError || !patient) {
+      console.error('❌ [Patient Search] Patient not found:', patientError);
       return NextResponse.json(
         { error: 'Patient not found with provided PIN' },
         { status: 404 }
@@ -65,6 +74,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch patient's medical data
+    // Handle both old schema (id) and new schema (profile_id)
+    const patientId = patient.id || patient.profile_id;
+    console.log('🔍 [Patient Search] Patient ID for medical data queries:', patientId, 'Type:', typeof patientId);
+    console.log('🔍 [Patient Search] Available fields:', Object.keys(patient));
+    console.log('🔍 [Patient Search] patient.id:', patient.id, 'patient.profile_id:', patient.profile_id);
+    
+    // Validate that we have a proper UUID
+    if (!patientId || typeof patientId !== 'string') {
+      console.error('❌ [Patient Search] Invalid patient ID:', patientId, 'Full patient object:', JSON.stringify(patient, null, 2));
+      return NextResponse.json(
+        { 
+          error: 'Invalid patient data found - missing ID field',
+          debug: {
+            availableFields: Object.keys(patient),
+            patientId: patient.id,
+            profileId: patient.profile_id
+          }
+        },
+        { status: 500 }
+      );
+    }
+    
     const [
       medicationsResult,
       allergiesResult,
@@ -75,31 +106,31 @@ export async function POST(request: NextRequest) {
       supabase
         .from('medications')
         .select('*')
-        .eq('patient_id', patient.id)
+        .eq('patient_id', patientId)
         .order('created_at', { ascending: false }),
       
       supabase
         .from('allergies')
         .select('*')
-        .eq('patient_id', patient.id)
+        .eq('patient_id', patientId)
         .order('created_at', { ascending: false }),
       
       supabase
         .from('exams')
         .select('*')
-        .eq('patient_id', patient.id)
+        .eq('patient_id', patientId)
         .order('exam_date', { ascending: false }),
       
       supabase
         .from('diseases')
         .select('*')
-        .eq('patient_id', patient.id)
+        .eq('patient_id', patientId)
         .order('created_at', { ascending: false }),
       
       supabase
         .from('consultations')
         .select('*')
-        .eq('patient_id', patient.id)
+        .eq('patient_id', patientId)
         .order('consultation_date', { ascending: false })
     ]);
 
@@ -123,10 +154,19 @@ export async function POST(request: NextRequest) {
 
 
     // Return patient profile and medical data
+    console.log('📋 [Patient Search] Returning patient with ID:', patientId, 'for PIN:', pin.trim());
+    console.log('📋 [Patient Search] Patient details:', {
+      id: patientId,
+      name: patient.full_name || patient.name,
+      cpf: patient.cpf,
+      user_id: patient.user_id,
+      linked: patient.linked
+    });
+    
     return NextResponse.json({
       patient: {
-        id: patient.id,
-        full_name: patient.full_name,
+        id: patientId, // Use the determined patient ID (works for both schemas)
+        full_name: patient.full_name || patient.name, // Handle both field names
         email: patient.email,
         cpf: patient.cpf,
         pin: patient.pin,
@@ -135,7 +175,9 @@ export async function POST(request: NextRequest) {
         address: patient.address,
         emergency_contact_name: patient.emergency_contact_name,
         emergency_contact_phone: patient.emergency_contact_phone,
-        created_at: patient.created_at
+        created_at: patient.created_at,
+        user_id: patient.user_id, // Include user_id for debugging
+        linked: patient.linked // Include linked status if available
       },
       medicalData: {
         medications: medicationsResult.data || [],

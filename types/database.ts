@@ -452,6 +452,55 @@ export interface ConsultationUpdate {
 }
 
 // =====================================================
+// RAW MEDICAL ENTRY TYPES
+// =====================================================
+
+export interface RawMedicalEntry {
+  id: string
+  patient_id: string
+  created_by: string
+  raw_text: string
+  category: string | null
+  ai_processed: boolean
+  processing_success: boolean
+  processing_error: string | null
+  entries_created: number
+  created_at: string
+  updated_at: string | null
+  is_deleted: boolean
+}
+
+export interface RawMedicalEntryInsert {
+  id?: string
+  patient_id: string
+  created_by: string
+  raw_text: string
+  category?: string | null
+  ai_processed?: boolean
+  processing_success?: boolean
+  processing_error?: string | null
+  entries_created?: number
+  created_at?: string
+  updated_at?: string | null
+  is_deleted?: boolean
+}
+
+export interface RawMedicalEntryUpdate {
+  id?: string
+  patient_id?: string
+  created_by?: string
+  raw_text?: string
+  category?: string | null
+  ai_processed?: boolean
+  processing_success?: boolean
+  processing_error?: string | null
+  entries_created?: number
+  created_at?: string
+  updated_at?: string | null
+  is_deleted?: boolean
+}
+
+// =====================================================
 // UTILITY TYPES
 // =====================================================
 

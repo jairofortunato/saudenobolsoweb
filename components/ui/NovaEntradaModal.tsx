@@ -74,6 +74,7 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({
         throw new Error(data.error || 'Erro ao buscar paciente');
       }
 
+      console.log('🔍 [NovaEntrada] Patient found:', data.patient);
       setPatient(data.patient);
       setPinError('');
     } catch (error) {
@@ -114,16 +115,53 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({
     setError('');
     setSuccess(false);
 
+    let rawEntryId: string | null = null;
+    
     try {
       // Multi-step processing feedback
       setProcessingStep('🔍 Analisando texto médico...');
       
+      // Save raw text first
+      const rawTextData = {
+        raw_text: content.trim(),
+        category: selectedCategory || null,
+        patient_id: isDoctor && patient ? patient.id : undefined
+      };
+
+      console.log('🔍 Attempting to save raw text:', rawTextData);
+
+      try {
+        const rawTextResponse = await fetch('/api/raw-medical-entries', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(rawTextData)
+        });
+
+        console.log('📡 Raw text API response status:', rawTextResponse.status);
+
+        if (rawTextResponse.ok) {
+          const rawData = await rawTextResponse.json();
+          rawEntryId = rawData.rawEntry?.id;
+          console.log('✅ Raw text saved successfully with ID:', rawEntryId);
+        } else {
+          const errorData = await rawTextResponse.json().catch(() => ({}));
+          console.error('❌ Failed to save raw text:', rawTextResponse.status, errorData);
+        }
+      } catch (rawTextError) {
+        console.error('❌ Error saving raw text:', rawTextError);
+      }
+
       // Prepare request body for web app API
+      const patientId = isDoctor && patient ? patient.id : undefined;
+      console.log('🔍 [NovaEntrada] Doctor mode:', isDoctor, 'Patient:', patient, 'Patient ID:', patientId);
+      
       const requestBody = {
         text: content.trim(),
         category: selectedCategory || null, // null for auto-detection
         submitDirectly: true,
-        patientId: isDoctor && patient ? patient.id : undefined // Include patientId for doctors
+        patientId: patientId // Include patientId for doctors
       };
 
       // Add slight delay to show analysis step
@@ -159,6 +197,22 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({
           setProcessingStep(`✅ ${entriesCreated} entrada(s) médica(s) criada(s)${patientName} em: ${categories.join(', ')}`);
         }
         
+        // Update raw entry with success status
+        if (rawEntryId) {
+          await fetch('/api/raw-medical-entries', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              id: rawEntryId,
+              ai_processed: true,
+              processing_success: true,
+              entries_created: entriesCreated
+            })
+          });
+        }
+
         // Call the original onSubmit callback for compatibility
         onSubmit({ 
           category: selectedCategory || 'auto-detected', 
@@ -209,6 +263,22 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({
           }
         }
         
+        // Update raw entry with partial success status
+        if (rawEntryId) {
+          await fetch('/api/raw-medical-entries', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              id: rawEntryId,
+              ai_processed: true,
+              processing_success: false, // Partial success
+              entries_created: 0 // No entries were created in database
+            })
+          });
+        }
+
         // Call the original onSubmit callback for compatibility
         onSubmit({ 
           category: selectedCategory || 'auto-detected', 
@@ -240,6 +310,27 @@ export const NovaEntradaModal: React.FC<NovaEntradaModalProps> = ({
           errorMessage = '❌ Não foi possível conectar ao processador de IA. Verifique se o serviço está rodando em localhost:8000';
         } else {
           errorMessage = error.message;
+        }
+      }
+      
+      // Update raw entry with error status
+      if (rawEntryId) {
+        try {
+          await fetch('/api/raw-medical-entries', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              id: rawEntryId,
+              ai_processed: true,
+              processing_success: false,
+              processing_error: errorMessage,
+              entries_created: 0
+            })
+          });
+        } catch (updateError) {
+          console.error('Error updating raw entry with error status:', updateError);
         }
       }
       

@@ -163,6 +163,10 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
                   id={allergy.id}
                   title={allergy.name}
                   variant="orange"
+                  category="Alergia"
+                  createdBy={allergy.created_by || "Sistema"}
+                  createdAt={allergy.created_at}
+                  description={allergy.reaction ? `Reação: ${allergy.reaction}` : undefined}
                   isEditing={false}
                 >
                   <div className="space-y-1">
@@ -218,6 +222,10 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
                   id={disease.id}
                   title={disease.name}
                   variant="red"
+                  category="Doença"
+                  createdBy={disease.created_by || "Sistema"}
+                  createdAt={disease.created_at}
+                  description={disease.description ? `Descrição: ${disease.description}` : undefined}
                   isEditing={false}
                 >
                   <div className="space-y-1">
@@ -248,7 +256,13 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
                     {disease.notes && (
                       <div>
                         <span className="text-sm font-semibold text-slate-800">Observações:</span>
-                        <p className="text-sm text-slate-600 mt-1">{disease.notes}</p>
+                        <div className="mt-1">
+                          {disease.notes.split('\n').map((note, index) => (
+                            <div key={index} className="text-sm text-slate-600 mb-1">
+                              <span className="text-red-600 font-medium">•</span> {note.trim()}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                     <div className="text-xs text-slate-500 pt-2 border-t border-slate-200">
@@ -285,6 +299,10 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
                   id={medication.id}
                   title={medication.name}
                   variant="blue"
+                  category="Medicamento"
+                  createdBy={medication.created_by || "Sistema"}
+                  createdAt={medication.created_at}
+                  description={medication.dosage ? `Dosagem: ${medication.dosage}` : undefined}
                   isEditing={false}
                 >
                   <div className="space-y-1">
@@ -352,6 +370,10 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
                   id={exam.id}
                   title={exam.name}
                   variant="purple"
+                  category="Exame"
+                  createdBy={exam.created_by || "Sistema"}
+                  createdAt={exam.created_at}
+                  description={exam.doctor_name ? `Médico: Dr. ${exam.doctor_name}` : undefined}
                   isEditing={false}
                 >
                   <div className="space-y-1">
@@ -424,6 +446,10 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
                   id={consultation.id}
                   title={`Dr. ${consultation.doctor_name}`}
                   variant="green"
+                  category="Consulta"
+                  createdBy={consultation.created_by || "Sistema"}
+                  createdAt={consultation.created_at}
+                  description={consultation.specialty ? `Especialidade: ${consultation.specialty}` : undefined}
                   isEditing={false}
                 >
                   <div className="space-y-1">

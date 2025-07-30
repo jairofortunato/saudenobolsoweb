@@ -90,18 +90,18 @@ export async function POST(request: NextRequest) {
     } else if (profile.role === 'doctor') {
       // Doctors can create entries for specified patients
       if (!patientId) {
-        console.log('❌ [AI Process] Doctor mode - no patient ID provided');
+        console.log('❌ [AI Process] Doctor mode - no patient ID provided. PatientId value:', patientId);
         return NextResponse.json(
-          { error: 'Patient ID is required for doctor entries' },
+          { error: 'Patient ID is required for doctor entries. Please select a patient first.' },
           { status: 400 }
         );
       }
       
-      // Verify patient exists
+      // Verify patient exists (handle both old and new schema)
       const { data: patient, error: patientError } = await supabase
         .from('profiles')
-        .select('id')
-        .eq('id', patientId)
+        .select('*')
+        .eq('profile_id', patientId)
         .eq('role', 'patient')
         .single();
 
@@ -162,10 +162,14 @@ export async function POST(request: NextRequest) {
     console.log('✅ [AI Process] Health check passed - proceeding with processing');
 
     // Prepare request for AI Processor Backend
+    // Get the correct profile ID (handle both schemas)
+    const createdBy = profile.profile_id || profile.id;
+    console.log('👤 [AI Process] Using created_by:', createdBy, 'from profile fields:', Object.keys(profile));
+    
     const aiRequest: AIProcessorRequest = {
       text: text.trim(),
       patient_id: targetPatientId,
-      created_by: profile.id,
+      created_by: createdBy,
       submit_to_db: true, // AI processor handles database storage directly
       category: category as MedicalCategory
     };

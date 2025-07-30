@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     // For patients, get their own entries
     // For doctors, they would need to specify patient_id (for future implementation)
-    const patient_id = profile.role === 'patient' ? profile.id : profile.id;
+    const patient_id = profile.role === 'patient' ? (profile.profile_id || profile.id) : (profile.profile_id || profile.id);
 
     // Parse query parameters for limiting results
     const url = new URL(request.url);
