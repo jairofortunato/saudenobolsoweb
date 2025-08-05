@@ -27,4 +27,11 @@ export * from './layout/Sidebar';
 // Doctor components
 export * from './doctor/PatientSearch';
 export * from './doctor/PatientDisplay';
-export * from './doctor/CreatePatientModal'; 
+export * from './doctor/CreatePatientModal';
+
+// ProntoDoc components
+export * from './prontodoc/RecordingController';
+export * from './prontodoc/TranscriptDisplay';
+export * from './prontodoc/AudioVisualizer';
+export * from './prontodoc/SessionInfo';
+export * from './prontodoc/ExportModal'; 
