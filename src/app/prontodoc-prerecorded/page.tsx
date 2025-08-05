@@ -262,7 +262,7 @@ Mantenha a linguagem técnica médica apropriada e seja preciso na organização
       formData.append('language', 'pt-BR');
       formData.append('model', transcriptionModel1);
 
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production.up.railway.app';
       const uploadUrl = `${apiBaseUrl}/api/prontodoc/prerecorded/transcribe`;
       
       const response = await fetch(uploadUrl, {
@@ -310,7 +310,7 @@ Mantenha a linguagem técnica médica apropriada e seja preciso na organização
       formData.append('language', 'pt');
       formData.append('model', transcriptionModel2);
 
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production.up.railway.app';
       const uploadUrl = `${apiBaseUrl}/api/prontodoc/prerecorded/transcribe-assemblyai`;
 
       const response = await fetch(uploadUrl, {
@@ -358,7 +358,7 @@ Mantenha a linguagem técnica médica apropriada e seja preciso na organização
       formData.append('language', 'pt');
       formData.append('model', transcriptionModel3);
 
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production.up.railway.app';
       const uploadUrl = `${apiBaseUrl}/api/prontodoc/prerecorded/transcribe-openai-whisper`;
       
       const response = await fetch(uploadUrl, {
