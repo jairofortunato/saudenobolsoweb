@@ -48,7 +48,7 @@ export default function ProntoDocPage() {
   // Initialize ProntoDoc client
   useEffect(() => {
     if (!authLoading && user) {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production-bebd.up.railway.app';
+      const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production-bebd.up.railway.app').replace(/\/$/, '');
       console.log('🔧 ProntoDoc Page: Initializing ProntoDoc with API base URL:', apiBaseUrl);
       console.log('🌍 ProntoDoc Page: Environment variables:');
       console.log('  - NEXT_PUBLIC_API_BASE_URL:', process.env.NEXT_PUBLIC_API_BASE_URL);

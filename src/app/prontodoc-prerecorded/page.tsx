@@ -240,8 +240,14 @@ Mantenha a linguagem técnica médica apropriada e seja preciso na organização
 
   // File upload handlers for each session
   const handleUploadFile1 = useCallback(async () => {
+    console.log('🚀 [SESSION 1] Starting upload process...');
+    console.log('📁 [SESSION 1] Selected file:', selectedFile1?.name, 'Size:', selectedFile1?.size);
+    console.log('👤 [SESSION 1] User logged in:', !!user);
+    
     if (!selectedFile1 || !user) {
-      setError('No file selected or user not logged in');
+      const errorMsg = 'No file selected or user not logged in';
+      console.error('❌ [SESSION 1] Validation failed:', errorMsg);
+      setError(errorMsg);
       return;
     }
 
@@ -253,6 +259,7 @@ Mantenha a linguagem técnica médica apropriada e seja preciso na organização
 
     try {
       const sessionId = `prerecorded_file_1_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log('🔑 [SESSION 1] Generated session ID:', sessionId);
       
       const formData = new FormData();
       formData.append('audio_file', selectedFile1);
@@ -262,34 +269,72 @@ Mantenha a linguagem técnica médica apropriada e seja preciso na organização
       formData.append('language', 'pt-BR');
       formData.append('model', transcriptionModel1);
 
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production-bebd.up.railway.app';
+      console.log('📋 [SESSION 1] FormData prepared:');
+      console.log('  - audio_file:', selectedFile1.name);
+      console.log('  - session_id:', sessionId);
+      console.log('  - language: pt-BR');
+      console.log('  - model:', transcriptionModel1);
+
+      const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production-bebd.up.railway.app').replace(/\/$/, '');
       const uploadUrl = `${apiBaseUrl}/api/prontodoc/prerecorded/transcribe`;
       
+      console.log('🌐 [SESSION 1] API Configuration:');
+      console.log('  - NEXT_PUBLIC_API_BASE_URL:', process.env.NEXT_PUBLIC_API_BASE_URL);
+      console.log('  - NEXT_PUBLIC_AI_PROCESSOR_URL:', process.env.NEXT_PUBLIC_AI_PROCESSOR_URL);
+      console.log('  - Final API Base URL:', apiBaseUrl);
+      console.log('  - Upload URL:', uploadUrl);
+      
+      console.log('📤 [SESSION 1] Sending POST request...');
       const response = await fetch(uploadUrl, {
         method: 'POST',
         body: formData
       });
 
+      console.log('📥 [SESSION 1] Response received:');
+      console.log('  - Status:', response.status);
+      console.log('  - Status Text:', response.statusText);
+      console.log('  - Headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('❌ [SESSION 1] Response not OK:');
+        console.error('  - Status:', response.status);
+        console.error('  - Error Text:', errorText);
         throw new Error(`Upload failed: ${response.status} ${errorText}`);
       }
 
       const result: PrerecordedTranscriptionResult = await response.json();
+      console.log('✅ [SESSION 1] Success! Transcription result:');
+      console.log('  - Transcript length:', result.transcript.length);
+      console.log('  - Duration:', result.duration);
+      console.log('  - Word count:', result.word_count);
+      console.log('  - Confidence:', result.confidence);
+      
       setTranscriptionResult1(result);
       setTranscript1(result.transcript);
       setIsTranscribing1(false);
       
     } catch (error) {
-      console.error('❌ Session 1 - Error uploading file:', error);
+      console.error('❌ [SESSION 1] Error uploading file:', error);
+      console.error('❌ [SESSION 1] Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       setError(error instanceof Error ? error.message : 'Failed to upload file');
       setIsTranscribing1(false);
     }
   }, [selectedFile1, user, transcriptionModel1]);
 
   const handleUploadFile2 = useCallback(async () => {
+    console.log('🚀 [SESSION 2] Starting AssemblyAI upload process...');
+    console.log('📁 [SESSION 2] Selected file:', selectedFile2?.name, 'Size:', selectedFile2?.size);
+    console.log('👤 [SESSION 2] User logged in:', !!user);
+    
     if (!selectedFile2 || !user) {
-      setError('No file selected or user not logged in');
+      const errorMsg = 'No file selected or user not logged in';
+      console.error('❌ [SESSION 2] Validation failed:', errorMsg);
+      setError(errorMsg);
       return;
     }
 
@@ -301,6 +346,7 @@ Mantenha a linguagem técnica médica apropriada e seja preciso na organização
 
     try {
       const sessionId = `prerecorded_file_2_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log('🔑 [SESSION 2] Generated session ID:', sessionId);
       
       const formData = new FormData();
       formData.append('audio_file', selectedFile2);
@@ -310,34 +356,70 @@ Mantenha a linguagem técnica médica apropriada e seja preciso na organização
       formData.append('language', 'pt');
       formData.append('model', transcriptionModel2);
 
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production-bebd.up.railway.app';
-      const uploadUrl = `${apiBaseUrl}/api/prontodoc/prerecorded/transcribe-assemblyai`;
+      console.log('📋 [SESSION 2] FormData prepared:');
+      console.log('  - audio_file:', selectedFile2.name);
+      console.log('  - session_id:', sessionId);
+      console.log('  - language: pt');
+      console.log('  - model:', transcriptionModel2);
 
+      const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production-bebd.up.railway.app').replace(/\/$/, '');
+      const uploadUrl = `${apiBaseUrl}/api/prontodoc/prerecorded/transcribe-assemblyai`;
+      
+      console.log('🌐 [SESSION 2] API Configuration:');
+      console.log('  - Final API Base URL:', apiBaseUrl);
+      console.log('  - Upload URL:', uploadUrl);
+
+      console.log('📤 [SESSION 2] Sending POST request to AssemblyAI endpoint...');
       const response = await fetch(uploadUrl, {
         method: 'POST',
         body: formData
       });
 
+      console.log('📥 [SESSION 2] Response received:');
+      console.log('  - Status:', response.status);
+      console.log('  - Status Text:', response.statusText);
+      console.log('  - Headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('❌ [SESSION 2] Response not OK:');
+        console.error('  - Status:', response.status);
+        console.error('  - Error Text:', errorText);
         throw new Error(`Upload failed: ${response.status} ${errorText}`);
       }
 
       const result: PrerecordedTranscriptionResult = await response.json();
+      console.log('✅ [SESSION 2] Success! AssemblyAI transcription result:');
+      console.log('  - Transcript length:', result.transcript.length);
+      console.log('  - Duration:', result.duration);
+      console.log('  - Word count:', result.word_count);
+      console.log('  - Confidence:', result.confidence);
+      
       setTranscriptionResult2(result);
       setTranscript2(result.transcript);
       setIsTranscribing2(false);
       
     } catch (error) {
-      console.error('❌ Session 2 - Error uploading file:', error);
+      console.error('❌ [SESSION 2] Error uploading file:', error);
+      console.error('❌ [SESSION 2] Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       setError(error instanceof Error ? error.message : 'Failed to upload file');
       setIsTranscribing2(false);
     }
   }, [selectedFile2, user, transcriptionModel2]);
 
   const handleUploadFile3 = useCallback(async () => {
+    console.log('🚀 [SESSION 3] Starting OpenAI Whisper upload process...');
+    console.log('📁 [SESSION 3] Selected file:', selectedFile3?.name, 'Size:', selectedFile3?.size);
+    console.log('👤 [SESSION 3] User logged in:', !!user);
+    
     if (!selectedFile3 || !user) {
-      setError('No file selected or user not logged in');
+      const errorMsg = 'No file selected or user not logged in';
+      console.error('❌ [SESSION 3] Validation failed:', errorMsg);
+      setError(errorMsg);
       return;
     }
 
@@ -349,6 +431,7 @@ Mantenha a linguagem técnica médica apropriada e seja preciso na organização
 
     try {
       const sessionId = `prerecorded_file_3_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log('🔑 [SESSION 3] Generated session ID:', sessionId);
       
       const formData = new FormData();
       formData.append('audio_file', selectedFile3);
@@ -358,26 +441,56 @@ Mantenha a linguagem técnica médica apropriada e seja preciso na organização
       formData.append('language', 'pt');
       formData.append('model', transcriptionModel3);
 
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production-bebd.up.railway.app';
+      console.log('📋 [SESSION 3] FormData prepared:');
+      console.log('  - audio_file:', selectedFile3.name);
+      console.log('  - session_id:', sessionId);
+      console.log('  - language: pt');
+      console.log('  - model:', transcriptionModel3);
+
+      const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production-bebd.up.railway.app').replace(/\/$/, '');
       const uploadUrl = `${apiBaseUrl}/api/prontodoc/prerecorded/transcribe-openai-whisper`;
       
+      console.log('🌐 [SESSION 3] API Configuration:');
+      console.log('  - Final API Base URL:', apiBaseUrl);
+      console.log('  - Upload URL:', uploadUrl);
+      
+      console.log('📤 [SESSION 3] Sending POST request to OpenAI Whisper endpoint...');
       const response = await fetch(uploadUrl, {
         method: 'POST',
         body: formData
       });
 
+      console.log('📥 [SESSION 3] Response received:');
+      console.log('  - Status:', response.status);
+      console.log('  - Status Text:', response.statusText);
+      console.log('  - Headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('❌ [SESSION 3] Response not OK:');
+        console.error('  - Status:', response.status);
+        console.error('  - Error Text:', errorText);
         throw new Error(`Upload failed: ${response.status} ${errorText}`);
       }
 
       const result: PrerecordedTranscriptionResult = await response.json();
+      console.log('✅ [SESSION 3] Success! OpenAI Whisper transcription result:');
+      console.log('  - Transcript length:', result.transcript.length);
+      console.log('  - Duration:', result.duration);
+      console.log('  - Word count:', result.word_count);
+      console.log('  - Confidence:', result.confidence);
+      
       setTranscriptionResult3(result);
       setTranscript3(result.transcript);
       setIsTranscribing3(false);
       
     } catch (error) {
-      console.error('❌ Session 3 - Error uploading file:', error);
+      console.error('❌ [SESSION 3] Error uploading file:', error);
+      console.error('❌ [SESSION 3] Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       setError(error instanceof Error ? error.message : 'Failed to upload file');
       setIsTranscribing3(false);
     }
