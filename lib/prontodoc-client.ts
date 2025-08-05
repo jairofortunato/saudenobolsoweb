@@ -94,7 +94,7 @@ export class ProntoDocClient {
   // Event callbacks
   private eventListeners: Map<ProntoDocEventType, ((event: ProntoDocEvent) => void)[]> = new Map();
   
-  constructor(private apiBaseUrl: string = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production.up.railway.app') {
+  constructor(private apiBaseUrl: string = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production-bebd.up.railway.app') {
     console.log('🏗️ ProntoDoc: Initializing client with API base URL:', apiBaseUrl);
     console.log('📋 ProntoDoc: Client configuration:');
     console.log('  - API Base URL:', this.apiBaseUrl);

@@ -18,7 +18,7 @@ const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:800
 
 **After:**
 ```javascript
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production.up.railway.app';
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production-bebd.up.railway.app';
 ```
 
 ### **2. Files Updated**
@@ -31,19 +31,19 @@ const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBL
 Set this environment variable in Vercel:
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=https://saude-ai-processor-production.up.railway.app
+NEXT_PUBLIC_API_BASE_URL=https://saude-ai-processor-production-bebd.up.railway.app
 ```
 
 **Alternative:**
 ```bash
-NEXT_PUBLIC_AI_PROCESSOR_URL=https://saude-ai-processor-production.up.railway.app
+NEXT_PUBLIC_AI_PROCESSOR_URL=https://saude-ai-processor-production-bebd.up.railway.app
 ```
 
 ## 🔧 **How to Deploy**
 
 ### **Option 1: Set Environment Variable in Vercel**
 1. Go to Vercel Dashboard → Your Project → Settings → Environment Variables
-2. Add: `NEXT_PUBLIC_API_BASE_URL` = `https://saude-ai-processor-production.up.railway.app`
+2. Add: `NEXT_PUBLIC_API_BASE_URL` = `https://saude-ai-processor-production-bebd.up.railway.app`
 3. Redeploy
 
 ### **Option 2: Use Code Fallback (Already Applied)**

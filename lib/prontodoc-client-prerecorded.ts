@@ -55,7 +55,7 @@ export class ProntoDocPrerecordedClient {
   // Event callbacks
   private eventListeners: Map<PrerecordedEventType, ((event: PrerecordedEvent) => void)[]> = new Map();
 
-  constructor(apiBaseUrl: string = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production.up.railway.app') {
+  constructor(apiBaseUrl: string = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'https://saude-ai-processor-production-bebd.up.railway.app') {
     console.log('🏗️ ProntoDoc Prerecorded: Initializing client with API base URL:', apiBaseUrl);
     this.apiBaseUrl = apiBaseUrl;
     this.initializeEventListeners();
