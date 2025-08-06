@@ -28,6 +28,10 @@ export * from './layout/Sidebar';
 export * from './doctor/PatientSearch';
 export * from './doctor/PatientDisplay';
 export * from './doctor/CreatePatientModal';
+export * from './doctor/ProntoDocPage';
+export * from './doctor/PatientSearchAndDisplay';
+export * from './doctor/RecordingAndTranscription';
+export * from './doctor/ConsultationTemplateSelector';
 
 // ProntoDoc components
 export * from './prontodoc/RecordingController';
