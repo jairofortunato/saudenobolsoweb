@@ -38,4 +38,5 @@ export * from './prontodoc/RecordingController';
 export * from './prontodoc/TranscriptDisplay';
 export * from './prontodoc/AudioVisualizer';
 export * from './prontodoc/SessionInfo';
-export * from './prontodoc/ExportModal'; 
+export * from './prontodoc/ExportModal';
+export * from './prontodoc/ProntuarioModal'; 

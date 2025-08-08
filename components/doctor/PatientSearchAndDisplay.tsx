@@ -282,7 +282,7 @@ export function PatientSearchAndDisplay({
           Qual nome do paciente?
         </h1>
         
-        <div className="relative max-w-lg mx-auto">
+        <div className="relative mx-auto">
           {/* SEARCH INPUT */}
           <Input
             type="text"
@@ -290,7 +290,7 @@ export function PatientSearchAndDisplay({
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Digite o nome do paciente..."
-            className="w-full text-lg py-4 px-6 rounded-full border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+            className="w-full bg-gray-50 text-lg py-7 px-6 rounded-full border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
             disabled={disabled}
             autoFocus
           />
@@ -327,32 +327,29 @@ export function PatientSearchAndDisplay({
           {/* NEW PATIENT HINT AND BUTTON */}
           {/* Shows when name not found in database */}
           {searchQuery.trim() && searchResults.length === 0 && !isSearching && !selectedPatient && (
-            <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="mt-2 p-3 border  rounded-lg">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                <p className="text-sm text-green-700 flex-1">
+                <p className="text-lg text-gray-700 flex-1">
                   ✨ <strong>"{searchQuery}"</strong> será criado como novo paciente.
                 </p>
                 <Button
                   onClick={handleCreateNewPatient}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-lg font-medium transition-colors"
                   disabled={disabled}
                 >
                   Criar Paciente
                 </Button>
               </div>
-              <p className="text-xs text-green-600 mt-2">
-                Ou pressione Enter para continuar
-              </p>
             </div>
           )}
           
           {/* SELECTED PATIENT SUMMARY */}
           {selectedPatient && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="mt-4 p-4 mx-24 rounded-lg">
               <div className="flex justify-between items-start">
                 <div>
                   <div className="text-sm text-blue-600 font-medium mb-1">
-                    {selectedPatient.isExisting ? '👤 Paciente Existente:' : '✨ Novo Paciente:'}
+                    {selectedPatient.isExisting ? '' : 'Novo Paciente:'}
                   </div>
                   <div className="text-lg font-semibold text-blue-900">{selectedPatient.name}</div>
                   {selectedPatient.isExisting && selectedPatient.cpf && (
@@ -360,7 +357,6 @@ export function PatientSearchAndDisplay({
                   )}
                   {!selectedPatient.isExisting && (
                     <div className="text-sm text-blue-600 mt-1">
-                      CPF e PIN serão solicitados após a consulta
                     </div>
                   )}
                 </div>
@@ -377,13 +373,7 @@ export function PatientSearchAndDisplay({
 
           {/* SEARCH INSTRUCTIONS */}
           {!selectedPatient && (
-            <div className="mt-4 text-sm text-gray-600 space-y-2">
-              <p>💡 <strong>Como usar:</strong></p>
-              <ul className="text-left space-y-1 max-w-md mx-auto">
-                <li>• Digite o nome para ver pacientes existentes</li>
-                <li>• Clique em um nome para selecioná-lo</li>
-                <li>• Ou digite um novo nome e pressione <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Enter</kbd></li>
-              </ul>
+            <div>
             </div>
           )}
         </div>
@@ -396,9 +386,6 @@ export function PatientSearchAndDisplay({
       {/* Uses PatientDisplay component to show complete medical profile */}
       {selectedPatient && selectedPatient.isExisting && patientMedicalData && (
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-gray-900 text-center">
-            📋 Dados Médicos do Paciente
-          </h2>
           <PatientDisplay 
             patient={{
               id: selectedPatient.id,

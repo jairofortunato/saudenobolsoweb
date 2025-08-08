@@ -2,10 +2,6 @@
 
 import React, { useState } from 'react';
 import { 
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   Button,
   BadgeToggleCard
 } from '../index';
@@ -185,53 +181,17 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
 
   return (
     <div className="space-y-6">
-      {/* Patient Information - Compact */}
-      <Card className="p-2">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-lg">👤 {patient.full_name}</CardTitle>
-          <Button 
-            variant="danger" 
-            size="sm" 
-            onClick={() => setIsEmergencyModalOpen(true)}
-          >
-            🚨 Emergência
-          </Button>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-            <div>
-              <label className="text-xs font-medium text-slate-500">PIN</label>
-              <p className="font-mono text-slate-800">{patient.pin}</p>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-500">Idade</label>
-              <p className="text-slate-800">
-                {patient.birth_date ? `${calculateAge(patient.birth_date)} anos` : 'N/A'}
-              </p>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-500">Telefone</label>
-              <p className="text-slate-800">{patient.phone || 'N/A'}</p>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-500">Email</label>
-              <p className="text-slate-800 truncate">{patient.email}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Allergies Card */}
-      <Card className="hover:shadow-md transition-shadow p-3">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between text-lg">
+      {/* Allergies Section */}
+      <div className="p-3">
+        <div>
+          <h3 className="flex items-center justify-between text-lg font-semibold text-black">
             <span>⚠️ Alergias</span>
             <span className="text-sm font-normal text-slate-500">
               {medicalData.allergies.length} registros
             </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </h3>
+        </div>
+        <div>
           {medicalData.allergies.length > 0 ? (
             <div className="flex flex-wrap gap-2 mt-1">
               {medicalData.allergies.map((allergy) => (
@@ -327,20 +287,20 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
               <p className="text-slate-500 text-sm">Nenhuma alergia registrada</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Diseases Card */}
-      <Card className="hover:shadow-md transition-shadow p-3">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between text-lg">
+      {/* Diseases Section */}
+      <div className="p-3">
+        <div>
+          <h3 className="flex items-center justify-between text-lg font-semibold text-black">
             <span>🩺 Doenças</span>
             <span className="text-sm font-normal text-slate-500">
               {medicalData.diseases.length} registros
             </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </h3>
+        </div>
+        <div>
           {medicalData.diseases.length > 0 ? (
             <div className="flex flex-wrap gap-2 mt-1">
               {medicalData.diseases.map((disease) => (
@@ -476,20 +436,20 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
               <p className="text-slate-500 text-sm">Nenhuma doença registrada</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Medications Card */}
-      <Card className="hover:shadow-md transition-shadow p-3">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between text-lg">
+      {/* Medications Section */}
+      <div className="p-3">
+        <div>
+          <h3 className="flex items-center justify-between text-lg font-semibold text-black">
             <span>💊 Medicamentos</span>
             <span className="text-sm font-normal text-slate-500">
               {medicalData.medications.filter(m => m.is_active).length} ativos
             </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </h3>
+        </div>
+        <div>
           {medicalData.medications.filter(m => m.is_active).length > 0 ? (
             <div className="flex flex-wrap gap-2 mt-1">
               {medicalData.medications.filter(m => m.is_active).map((medication) => (
@@ -611,20 +571,20 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
               <p className="text-slate-500 text-sm">Nenhum medicamento ativo</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Exams Card */}
-      <Card className="hover:shadow-md transition-shadow p-3">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between text-lg">
+      {/* Exams Section */}
+      <div className="p-3">
+        <div>
+          <h3 className="flex items-center justify-between text-lg font-semibold text-black">
             <span>🔬 Exames</span>
             <span className="text-sm font-normal text-slate-500">
               {medicalData.exams.length} registros
             </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </h3>
+        </div>
+        <div>
           {medicalData.exams.length > 0 ? (
             <div className="flex flex-wrap gap-2 mt-1">
               {medicalData.exams.map((exam) => (
@@ -752,20 +712,20 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
               <p className="text-slate-500 text-sm">Nenhum exame registrado</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Consultations Card */}
-      <Card className="hover:shadow-md transition-shadow p-3">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between text-lg">
+      {/* Consultations Section */}
+      <div className="p-3">
+        <div>
+          <h3 className="flex items-center justify-between text-lg font-semibold text-black">
             <span>👩‍⚕️ Consultas</span>
             <span className="text-sm font-normal text-slate-500">
               {medicalData.consultations.length} registros
             </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </h3>
+        </div>
+        <div>
           {medicalData.consultations.length > 0 ? (
             <div className="flex flex-wrap gap-2 mt-1">
               {medicalData.consultations.map((consultation) => (
@@ -917,8 +877,8 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
               <p className="text-slate-500 text-sm">Nenhuma consulta registrada</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Emergency Modal */}
       <DoctorEmergencyModal

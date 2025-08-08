@@ -1,258 +1,140 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Card, CardContent } from '../ui/Card';
-import { cn } from '../../lib/utils';
 
 interface AudioVisualizerProps {
   audioStream: MediaStream | null;
   isRecording: boolean;
+  onToggleRecording?: () => void;
   className?: string;
 }
 
 export function AudioVisualizer({ 
   audioStream, 
   isRecording, 
+  onToggleRecording,
   className 
 }: AudioVisualizerProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
-  const analyserRef = useRef<AnalyserNode>();
-  const dataArrayRef = useRef<Uint8Array>();
-  const [audioLevel, setAudioLevel] = useState(0);
-  const [isActive, setIsActive] = useState(false);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const dataArrayRef = useRef<Uint8Array | null>(null);
+  const [levelsHalf, setLevelsHalf] = useState<number[]>(Array.from({ length: 16 }, () => 0));
 
-  // Initialize audio analysis
+  // Init analyser
   useEffect(() => {
-    if (!audioStream || !isRecording) {
-      setIsActive(false);
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-      return;
-    }
+    if (!audioStream || !isRecording) return;
 
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const analyser = audioContext.createAnalyser();
       const source = audioContext.createMediaStreamSource(audioStream);
-      
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.8;
+      analyser.fftSize = 512; // higher resolution
+      analyser.smoothingTimeConstant = 0.85;
       source.connect(analyser);
-      
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
       analyserRef.current = analyser;
       dataArrayRef.current = dataArray;
-      setIsActive(true);
 
       return () => {
         source.disconnect();
         audioContext.close();
       };
-    } catch (error) {
-      console.error('Error initializing audio analyzer:', error);
+    } catch (e) {
+      console.error('Audio analyzer init error:', e);
     }
   }, [audioStream, isRecording]);
 
-  // Animation loop
-  const animate = useCallback(() => {
-    if (!analyserRef.current || !dataArrayRef.current || !canvasRef.current) {
-      return;
-    }
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  // Update loop
+  const update = useCallback(() => {
+    if (!isRecording || !analyserRef.current || !dataArrayRef.current) return;
 
     const analyser = analyserRef.current;
-    const dataArray = dataArrayRef.current;
-    
-    analyser.getByteFrequencyData(dataArray);
+    const data = dataArrayRef.current;
+    analyser.getByteFrequencyData(data);
 
-    // Calculate audio level
-    const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-    setAudioLevel(average / 255);
+    // Compute half-spectrum buckets, then mirror to center heavy energy near middle
+    const halfCount = 16; // total bars will be 32 (mirrored)
+    const segmentSize = Math.floor(data.length / halfCount);
+    const halfLevels: number[] = [];
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw waveform
-    drawWaveform(ctx, canvas, dataArray);
-
-    if (isActive && isRecording) {
-      animationRef.current = requestAnimationFrame(animate);
+    for (let i = 0; i < halfCount; i++) {
+      const start = i * segmentSize;
+      const end = i === halfCount - 1 ? data.length : start + segmentSize;
+      let sum = 0;
+      for (let j = start; j < end; j++) sum += data[j];
+      const avg = sum / Math.max(1, end - start);
+      const normalized = Math.max(0.06, Math.min(1, avg / 255));
+      halfLevels.push(normalized);
     }
-  }, [isActive, isRecording]);
+
+    setLevelsHalf(halfLevels);
+    requestAnimationFrame(update);
+  }, [isRecording]);
 
   useEffect(() => {
-    if (isActive && isRecording) {
-      animate();
-    }
-    
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [isActive, isRecording, animate]);
+    if (isRecording) update();
+  }, [isRecording, update]);
 
-  const drawWaveform = (
-    ctx: CanvasRenderingContext2D, 
-    canvas: HTMLCanvasElement, 
-    dataArray: Uint8Array
-  ) => {
-    const width = canvas.width;
-    const height = canvas.height;
-    const barCount = 32;
-    const barWidth = width / barCount;
+  // Idle profile (center-emphasized)
+  const idleHalf = Array.from({ length: 16 }, (_, i) => {
+    const center = 0; // index 0 will be placed at center by mirroring
+    const dist = Math.abs(i - center);
+    const v = Math.max(0.1, 0.5 - dist * 0.03);
+    return Math.max(0.08, v);
+  });
 
-    // Create gradient
-    const gradient = ctx.createLinearGradient(0, height, 0, 0);
-    gradient.addColorStop(0, '#10b981'); // green-500
-    gradient.addColorStop(0.6, '#f59e0b'); // amber-500  
-    gradient.addColorStop(1, '#ef4444'); // red-500
-
-    ctx.fillStyle = gradient;
-
-    // Draw bars
-    for (let i = 0; i < barCount; i++) {
-      const dataIndex = Math.floor((i / barCount) * dataArray.length);
-      const barHeight = (dataArray[dataIndex] / 255) * height * 0.8;
-      
-      const x = i * barWidth;
-      const y = height - barHeight;
-      
-      ctx.fillRect(x, y, barWidth - 2, barHeight);
-    }
-  };
-
-  // Audio level bars component
-  const AudioLevelBars = () => {
-    const bars = Array.from({ length: 10 }, (_, i) => {
-      const threshold = (i + 1) / 10;
-      const isActive = audioLevel >= threshold;
-      
-      let barColor = 'bg-slate-200';
-      if (isActive) {
-        if (threshold <= 0.6) barColor = 'bg-green-400';
-        else if (threshold <= 0.8) barColor = 'bg-yellow-400';
-        else barColor = 'bg-red-400';
-      }
-      
-      return (
-        <div
-          key={i}
-          className={cn(
-            'w-3 rounded-full transition-all duration-100',
-            barColor,
-            isActive ? 'opacity-100' : 'opacity-30'
-          )}
-          style={{ height: `${(i + 1) * 10}%` }}
-        />
-      );
-    });
-
-    return (
-      <div className="flex items-end space-x-1 h-16">
-        {bars}
-      </div>
-    );
-  };
-
-  const getAudioLevelText = () => {
-    if (audioLevel < 0.1) return 'Silêncio';
-    if (audioLevel < 0.3) return 'Baixo';
-    if (audioLevel < 0.6) return 'Médio';
-    if (audioLevel < 0.8) return 'Alto';
-    return 'Muito Alto';
-  };
-
-  const getAudioLevelColor = () => {
-    if (audioLevel < 0.1) return 'text-slate-500';
-    if (audioLevel < 0.3) return 'text-blue-500';
-    if (audioLevel < 0.6) return 'text-green-500';
-    if (audioLevel < 0.8) return 'text-yellow-500';
-    return 'text-red-500';
-  };
+  const half = isRecording ? levelsHalf : idleHalf;
+  // Mirror around center so index 0 sits near the middle on both sides
+  const mirrored = [...half.slice().reverse(), ...half];
 
   return (
-    <Card variant="soft" className={cn("w-full", className)}>
-      <CardContent className="space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-slate-700">
-            Visualização do Áudio
-          </h3>
-          <div className="flex items-center space-x-2">
-            <div className={cn(
-              "w-2 h-2 rounded-full transition-colors",
-              isRecording && isActive ? "bg-green-400 animate-pulse" : "bg-slate-300"
-            )} />
-            <span className="text-xs text-slate-500">
-              {isRecording && isActive ? 'Ativo' : 'Inativo'}
-            </span>
+    <div>
+      <h2 className="text-3xl font-bold text-gray-900 mb-6">
+        Escutar e entender consulta
+      </h2>
+      <div className={`relative w-full h-40 md:h-48 ${className}`}>
+        {/* Bars */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-full h-full max-w-7xl flex items-center justify-center gap-1.5 md:gap-2 px-4">
+            {mirrored.map((level, idx) => (
+              <div key={idx} className="flex flex-col items-center justify-center gap-1 w-2 md:w-2.5 h-full">
+                <div
+                  className="w-full rounded-full bg-black"
+                  style={{ height: `${Math.round(level * 46)}%` }}
+                />
+                <div
+                  className="w-full rounded-full bg-black"
+                  style={{ height: `${Math.round(level * 46)}%` }}
+                />
+              </div>
+            ))}
           </div>
         </div>
 
-        {isRecording && isActive ? (
-          <div className="space-y-4">
-            {/* Waveform Canvas */}
-            <div className="bg-slate-900 rounded-xl p-4 overflow-hidden">
-              <canvas
-                ref={canvasRef}
-                width={320}
-                height={80}
-                className="w-full h-20"
-                style={{ imageRendering: 'pixelated' }}
-              />
-            </div>
-
-            {/* Audio Level Indicator */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <AudioLevelBars />
-                <div className="text-sm">
-                  <p className={cn("font-medium", getAudioLevelColor())}>
-                    {getAudioLevelText()}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {Math.round(audioLevel * 100)}% do máximo
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Audio Quality Tips */}
-            <div className="text-xs text-slate-600 space-y-1">
-              {audioLevel < 0.1 && (
-                <p className="text-red-600">⚠️ Nível muito baixo - aproxime o microfone</p>
-              )}
-              {audioLevel > 0.9 && (
-                <p className="text-red-600">⚠️ Nível muito alto - afaste o microfone</p>
-              )}
-              {audioLevel >= 0.2 && audioLevel <= 0.8 && (
-                <p className="text-green-600">✓ Nível de áudio ideal</p>
-              )}
-            </div>
-          </div>
-        ) : (
-          /* Inactive State */
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+        {/* Central mic button */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <button
+            type="button"
+            onClick={onToggleRecording}
+            className={`pointer-events-auto rounded-full shadow-2xl transition-all duration-200 ease-out active:scale-95 hover:scale-105 flex items-center justify-center text-white ${
+              isRecording ? 'bg-black hover:bg-red-600' : 'bg-black hover:bg-slate-900'
+            } ${'w-28 h-28 md:w-36 md:h-36'}`}
+            aria-label={isRecording ? 'Parar gravação' : 'Iniciar gravação'}
+          >
+            {isRecording ? (
+              <svg className="w-9 h-9 md:w-11 md:h-11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <rect x="6.5" y="6.5" width="11" height="11" rx="2.2" />
               </svg>
-            </div>
-            <p className="text-sm text-slate-500 mb-2">Visualização inativa</p>
-            <p className="text-xs text-slate-400">
-              Inicie a gravação para ver a forma de onda do áudio
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            ) : (
+              <svg className="w-10 h-10 md:w-12 md:h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v4a3 3 0 0 0 3 3Z" fill="currentColor" stroke="currentColor" />
+                <path d="M19 11a7 7 0 0 1-14 0" stroke="currentColor" />
+                <path d="M12 18v4m0 0H9m3 0h3" stroke="currentColor" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
