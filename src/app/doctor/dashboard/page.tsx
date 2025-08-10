@@ -14,6 +14,7 @@ import { PatientSearch } from '../../../../components/doctor/PatientSearch';
 import { PatientDisplay } from '../../../../components/doctor/PatientDisplay';
 import { getDisplayName } from '../../../../lib/auth-utils';
 import { Medication, Allergy, Exam, Disease, Consultation } from '../../../../types/database';
+import { createClient } from '../../../../lib/supabase';
 
 interface PatientProfile {
   id: string;
@@ -47,13 +48,15 @@ export default function DoctorDashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [searchResult, setSearchResult] = useState<PatientSearchResult | null>(null);
-  
-  // NovaEntradaModal state
-  const [isNovaEntradaModalOpen, setIsNovaEntradaModalOpen] = useState(false);
+  // Top action modals
+  const [isCreatePatientOpen, setIsCreatePatientOpen] = useState(false);
+  const [isNovaEntradaOpen, setIsNovaEntradaOpen] = useState(false);
   const [processingResult, setProcessingResult] = useState<any>(null);
-  
-  // CreatePatientModal state
-  const [isCreatePatientModalOpen, setIsCreatePatientModalOpen] = useState(false);
+
+  // Doctor patients table
+  const [patients, setPatients] = useState<PatientProfile[]>([]);
+  const [patientsLoading, setPatientsLoading] = useState<boolean>(true);
+  const [patientsError, setPatientsError] = useState<string | null>(null);
 
   // Redirect if not a doctor
   useEffect(() => {
@@ -74,38 +77,77 @@ export default function DoctorDashboardPage() {
     setSearchResult(null);
   };
 
+  const handlePatientCreated = (patient: any) => {
+    // Optimistically add to table top
+    setPatients((prev) => [
+      {
+        id: patient.id,
+        full_name: patient.full_name,
+        cpf: patient.cpf,
+        pin: patient.pin,
+        email: patient.email,
+        created_at: patient.created_at
+      },
+      ...prev
+    ]);
+  };
+
   const handleNovaEntradaSubmit = (data: { category: string; content: string }) => {
     console.log('Nova entrada submitted:', data);
-    // The modal handles the AI processing internally
   };
 
   const handleProcessingComplete = (result: any) => {
     setProcessingResult(result);
-    // You could show a success notification here
     console.log('Processing completed:', result);
   };
 
-  const openNovaEntradaModal = () => {
-    setIsNovaEntradaModalOpen(true);
-  };
+  // Load patients created by this doctor
+  useEffect(() => {
+    const fetchPatients = async () => {
+      if (!profile || profile.role !== 'doctor') return;
+      setPatientsLoading(true);
+      setPatientsError(null);
+      try {
+        const supabase = createClient();
+        const createdByValues = [profile.id].filter(Boolean);
+        let query = supabase
+          .from('profiles')
+          .select('profile_id, full_name, cpf, pin, email, created_at')
+          .eq('role', 'patient')
+          .order('created_at', { ascending: false });
 
-  const closeNovaEntradaModal = () => {
-    setIsNovaEntradaModalOpen(false);
-    setProcessingResult(null);
-  };
+        if (createdByValues.length === 1) {
+          query = query.eq('created_by', createdByValues[0] as string);
+        } else if (createdByValues.length > 1) {
+          // @ts-ignore - supabase-js supports .in
+          query = query.in('created_by', createdByValues as string[]);
+        }
 
-  const openCreatePatientModal = () => {
-    setIsCreatePatientModalOpen(true);
-  };
+        const { data, error } = await query;
+        if (error) {
+          throw error;
+        }
 
-  const closeCreatePatientModal = () => {
-    setIsCreatePatientModalOpen(false);
-  };
+        const mapped: PatientProfile[] = (data || []).map((p: any) => ({
+          id: p.profile_id,
+          full_name: p.full_name,
+          cpf: p.cpf,
+          pin: p.pin,
+          email: p.email,
+          created_at: p.created_at
+        }));
 
-  const handlePatientCreated = (patient: any) => {
-    console.log('Patient created:', patient);
-    // You could show a success notification here or refresh patient list
-  };
+        setPatients(mapped);
+      } catch (err: any) {
+        console.error('Error loading doctor patients:', err);
+        setPatientsError('Falha ao carregar pacientes do médico');
+      } finally {
+        setPatientsLoading(false);
+      }
+    };
+
+    fetchPatients();
+  }, [profile]);
 
   if (loading || !profile) {
     return (
@@ -128,53 +170,70 @@ export default function DoctorDashboardPage() {
       ]}
     >
       <div className="space-y-6">
-        {/* Quick Actions Section */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-xl font-semibold text-slate-800 mb-4">
-            🚀 Ações Rápidas
-          </h2>
-          <div className="flex flex-wrap gap-3">
-            <Button
-              variant="secondary"
-              onClick={openCreatePatientModal}
-              className="flex items-center gap-2"
-            >
-              <span>👤</span>
-              <span>Criar Paciente</span>
-            </Button>
-            <Button
-              variant="primary"
-              onClick={openNovaEntradaModal}
-              className="flex items-center gap-2"
-            >
-              <span>➕</span>
-              <span>Nova Entrada Médica</span>
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => window.location.reload()}
-              className="flex items-center gap-2"
-            >
-              <span>🔄</span>
-              <span>Atualizar</span>
-            </Button>
-          </div>
-          <p className="text-sm text-slate-600 mt-3">
-            💡 Use "Criar Paciente" para cadastrar um novo paciente e "Nova Entrada Médica" para adicionar informações médicas via PIN
-          </p>
+        {/* Top Actions */}
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant="secondary"
+            onClick={() => setIsCreatePatientOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <span>👤</span>
+            <span>Criar Paciente</span>
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => setIsNovaEntradaOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <span>➕</span>
+            <span>Nova Entrada Médica</span>
+          </Button>
         </div>
 
-        {/* Patient Search Section */}
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-xl font-semibold text-slate-800 mb-4">
-            🔍 Buscar Paciente
-          </h2>
+        {/* Buscar Paciente - moved up */}
+        <div className=" rounded-lg ">
+      
           <PatientSearch 
             onPatientFound={handlePatientFound}
             onClear={handleNewSearch}
           />
         </div>
         
+        {/* Tabela de Pacientes do Médico */}
+        <div className=" rounded-lg   p-2">
+          <h2 className="text-xl font-semibold text-slate-800 mb-4">Pacientes</h2>
+          {patientsLoading ? (
+            <div className="py-6"><Loading size="sm" /></div>
+          ) : patientsError ? (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{patientsError}</div>
+          ) : patients.length === 0 ? (
+            <p className="text-slate-600 text-sm">Nenhum paciente cadastrado por você ainda.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Nome</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">CPF</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">PIN</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Criado em</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-slate-100">
+                  {patients.map((p) => (
+                    <tr key={p.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-2 text-slate-800">{p.full_name}</td>
+                      <td className="px-4 py-2 text-slate-700 font-mono text-sm">{p.cpf}</td>
+                      <td className="px-4 py-2 text-slate-700 font-mono text-sm">{p.pin}</td>
+                      <td className="px-4 py-2 text-slate-600 text-sm">{new Date(p.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
         {/* Patient Display Section */}
         {searchResult && (
           <div className="bg-white rounded-lg border border-slate-200 p-6">
@@ -189,19 +248,17 @@ export default function DoctorDashboardPage() {
           </div>
         )}
 
-        {/* NovaEntradaModal */}
+        {/* Modals */}
+        <CreatePatientModal
+          open={isCreatePatientOpen}
+          onClose={() => setIsCreatePatientOpen(false)}
+          onPatientCreated={handlePatientCreated}
+        />
         <NovaEntradaModal
-          open={isNovaEntradaModalOpen}
-          onClose={closeNovaEntradaModal}
+          open={isNovaEntradaOpen}
+          onClose={() => setIsNovaEntradaOpen(false)}
           onSubmit={handleNovaEntradaSubmit}
           onProcessingComplete={handleProcessingComplete}
-        />
-
-        {/* CreatePatientModal */}
-        <CreatePatientModal
-          open={isCreatePatientModalOpen}
-          onClose={closeCreatePatientModal}
-          onPatientCreated={handlePatientCreated}
         />
       </div>
     </DashboardLayout>

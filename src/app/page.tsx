@@ -1,160 +1,99 @@
 'use client';
-
-import React, { useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '../../hooks/useAuth';
-import { 
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from '../../components';
-import { getDashboardRoute, getDisplayName } from '../../lib/auth-utils';
+import { Button } from '../../components';
 
 export default function Home() {
-  const { user, profile, loading, error, signOut } = useAuth();
-  const router = useRouter();
-
-  // Redirect to dashboard if user is authenticated
-  useEffect(() => {
-    if (!loading && user && profile) {
-      router.push(getDashboardRoute(profile.role));
-    }
-  }, [loading, user, profile, router]);
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
-
-  // Show loading screen while authentication is being checked
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-pink-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-2 border-blue-300 border-t-blue-600 rounded-full mx-auto mb-4"></div>
-          <p className="text-slate-600">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error state if there's an auth error
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-pink-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full">
-          <Card className="bg-red-50 border-red-200">
-            <CardHeader>
-              <CardTitle className="text-red-800">Erro de Conexão</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-red-700 mb-4">
-                Não foi possível conectar ao sistema. Verifique sua conexão com a internet e tente novamente.
-              </p>
-              <p className="text-sm text-red-600 mb-4">
-                Erro: {error}
-              </p>
-              <Button 
-                onClick={() => window.location.reload()} 
-                variant="primary"
-                className="w-full"
-              >
-                Tentar Novamente
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-pink-50">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-slate-800">
-                Saúde no Bolso
-              </h1>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              {user ? (
-                <>
-                  <span className="text-sm text-slate-600">
-                    Olá, {profile ? getDisplayName(profile) : user.email}
-                  </span>
-                  {profile && (
-                    <Link href={getDashboardRoute(profile.role)}>
-                      <Button variant="primary" size="sm">
-                        Dashboard
-                      </Button>
-                    </Link>
-                  )}
-                  <Button variant="outline" size="sm" onClick={handleSignOut}>
-                    Sair
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Link href="/signin">
-                    <Button variant="outline" size="sm">
-                      Entrar
-                    </Button>
-                  </Link>
-                  <Link href="/signup">
-                    <Button variant="primary" size="sm">
-                      Criar Conta
-                    </Button>
-                  </Link>
-                </>
-              )}
-            </div>
+    <div className="min-h-screen bg-white">
+      <header className="border-b border-slate-200">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded bg-slate-900" aria-hidden="true" />
+            <span className="text-xl font-semibold text-slate-900">Prontodoc</span>
           </div>
+          <nav className="flex items-center gap-3">
+            <Link href="/signin">
+              <Button variant="outline" size="sm">Entrar</Button>
+            </Link>
+            <Link href="/signup">
+              <Button variant="primary" size="sm">Começar agora</Button>
+            </Link>
+          </nav>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        
-        {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h1 className="text-5xl md:text-6xl font-bold text-slate-800 mb-6">
-            Sua saúde sempre
-            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-pink-600">
-              no seu bolso
-            </span>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+        <section className="text-center mb-16 md:mb-24">
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-slate-900 mb-4">
+            Prontuário Inteligente Automático
           </h1>
-          <p className="text-xl text-slate-600 mb-8 max-w-3xl mx-auto">
-            Gerencie suas informações médicas de forma segura e tenha acesso rápido 
-            em situações de emergência. Para pacientes e médicos.
+          <p className="text-lg md:text-xl text-slate-600 max-w-3xl mx-auto">
+            Transcrição instantânea e notas estruturadas em segundos. Poupe 2–4 horas por semana e foque no que importa: seus pacientes.
           </p>
-          
-          {!user && (
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/signup">
-                <Button variant="primary" size="xl" className="min-w-[200px]">
-                  Começar Agora
-                </Button>
-              </Link>
-              <Link href="/signin">
-                <Button variant="secondary" size="xl" className="min-w-[200px]">
-                  Já tenho conta
-                </Button>
+          <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/signup">
+              <Button variant="primary" size="lg" className="min-w-[200px]">Experimentar por 7 dias</Button>
+            </Link>
+            <Link href="/signin">
+              <Button variant="secondary" size="lg" className="min-w-[200px]">Já sou usuário</Button>
+            </Link>
+          </div>
+          <div className="mt-4 text-slate-500 text-sm">R$ 298/mês • Garantia: 7 dias sem risco</div>
+        </section>
+
+        <section className="grid md:grid-cols-3 gap-8 mb-16">
+          <div className="text-center">
+            <h3 className="font-semibold text-slate-900 mb-2">Dor</h3>
+            <p className="text-slate-600">Médicos perdem 2–4 horas/semana com documentação — menos foco no paciente e mais burnout.</p>
+          </div>
+          <div className="text-center">
+            <h3 className="font-semibold text-slate-900 mb-2">Dinheiro</h3>
+            <p className="text-slate-600">Horas desperdiçadas = menos consultas/dia = receita perdida.</p>
+          </div>
+          <div className="text-center">
+            <h3 className="font-semibold text-slate-900 mb-2">Urgência</h3>
+            <p className="text-slate-600">Alta em plantões e clínicas com 10+ pacientes/dia. Posicione antes de turnos pesados.</p>
+          </div>
+        </section>
+
+        <section className="grid md:grid-cols-2 gap-10 items-start mb-16">
+          <div>
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">5–10× mais rápido que digitar</h3>
+            <p className="text-slate-600">O padrão hoje é digitar manualmente ou preencher formulários lentos do prontuário eletrônico. O Prontodoc oferece transcrição precisa e instantânea com notas estruturadas automaticamente.</p>
+          </div>
+          <div>
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">Valor em menos de 5 minutos</h3>
+            <p className="text-slate-600">Abra o app → Toque em gravar → Termine a consulta → Veja a nota estruturada → Exporte para EMR/PDF.</p>
+          </div>
+        </section>
+
+        <section className="bg-slate-50 rounded-lg p-6 md:p-8 mb-16">
+          <div className="grid md:grid-cols-3 gap-6 items-center">
+            <div className="md:col-span-2">
+              <p className="italic text-slate-800">“Economizei 2 horas por dia; agora atendo 3 pacientes a mais diariamente.”</p>
+              <p className="text-sm text-slate-500 mt-2">— Caso real de médicos parceiros</p>
+            </div>
+            <div className="text-center md:text-right">
+              <div className="text-2xl font-bold text-slate-900">R$ 298/mês</div>
+              <div className="text-slate-600 text-sm">Teste por 7 dias. Se não reduzir o tempo de documentação em 50%, você não paga.</div>
+              <Link href="/signup" className="inline-block mt-3">
+                <Button variant="primary" size="sm">Começar agora</Button>
               </Link>
             </div>
-          )}
-        </div>
-
+          </div>
+        </section>
       </main>
+
+      <footer className="border-t border-slate-200">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between text-sm text-slate-500">
+          <span>© {new Date().getFullYear()} Prontodoc</span>
+          <div className="flex items-center gap-4">
+            <Link href="/signin" className="hover:text-slate-700">Entrar</Link>
+            <Link href="/signup" className="hover:text-slate-700">Criar conta</Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
