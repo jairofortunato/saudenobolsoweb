@@ -242,22 +242,7 @@ function SigninContent() {
 
       
 
-        {/* Demo Accounts */}
-        {process.env.NODE_ENV === 'development' && (
-          <Card className="mt-6 bg-yellow-50 border-yellow-200">
-            <CardContent className="p-4">
-              <h3 className="text-sm font-semibold text-yellow-800 mb-2">
-                Conta de Demonstração
-              </h3>
-              <div className="space-y-2 text-xs text-yellow-700">
-          
-                <div>
-                  <strong>Médico:</strong> gabrielsmeister@gmail.com / Saude2025!
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        
       </div>
     </div>
   );

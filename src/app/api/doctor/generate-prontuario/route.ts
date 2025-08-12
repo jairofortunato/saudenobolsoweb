@@ -113,13 +113,16 @@ Descreva o que o paciente relatou espontaneamente sobre seus sintomas, queixas, 
 
 O:
 
-Descreva os achados clínicos observados pelo médico, como inspeção, palpação, ausculta, sinais clínicos, exames físicos (se mencionados).
+Descreva os achados clínicos observados pelo médico, como inspeção, palpação, ausculta, sinais clínicos, exames físicos (se mencionados). Quebre linhas para cada campo.
 
-A (Na avaliação seja mais objetivo, utilize apenas palavras (exemplos: HAS, bursite do ombro, fibromialgia), quando estiver com dúvida diagnóstica coloque um ponto de interrogação (exemplo: insuficiência cardíaca?):
+A:
 
-Informe a hipótese diagnóstica do médico com base nas informações subjetivas e objetivas.
+Informe a hipótese diagnóstica do médico com base nas informações subjetivas e objetivas. seja mais objetivo, utilize apenas palavras (exemplos: HAS, bursite do ombro, fibromialgia), quando estiver com dúvida diagnóstica coloque um ponto de interrogação (exemplo: insuficiência cardíaca?)
 
-P: (escrito em primeira pessoa do presente):
+P:
+
+Descreva a conduta proposta pelo médico: exames solicitados, medicamentos prescritos, orientações ou encaminhamentos. Escrito em primeira pessoa do presente
+
 
 Descreva a conduta proposta pelo médico: exames solicitados, medicamentos prescritos, orientações ou encaminhamentos.
 
@@ -156,15 +159,15 @@ Descreva o que o paciente relatou espontaneamente sobre seus sintomas, queixas, 
 
 O:
 
-Descreva os achados clínicos observados pelo médico, como inspeção, palpação, ausculta, sinais clínicos, exames físicos (se mencionados).
+Descreva os achados clínicos observados pelo médico, como inspeção, palpação, ausculta, sinais clínicos, exames físicos (se mencionados). Quebre linhas para cada campo.
 
-A (Na avaliação seja mais objetivo, utilize apenas palavras (exemplos: HAS, bursite do ombro, fibromialgia), quando estiver com dúvida diagnóstica coloque um ponto de interrogação (exemplo: insuficiência cardíaca?):
+A:
 
-Informe a hipótese diagnóstica do médico com base nas informações subjetivas e objetivas.
+Informe a hipótese diagnóstica do médico com base nas informações subjetivas e objetivas. seja mais objetivo, utilize apenas palavras (exemplos: HAS, bursite do ombro, fibromialgia), quando estiver com dúvida diagnóstica coloque um ponto de interrogação (exemplo: insuficiência cardíaca?)
 
-P: (escrito em primeira pessoa do presente):
+P:
 
-Descreva a conduta proposta pelo médico: exames solicitados, medicamentos prescritos, orientações ou encaminhamentos.
+Descreva a conduta proposta pelo médico: exames solicitados, medicamentos prescritos, orientações ou encaminhamentos. Escrito em primeira pessoa do presente
 
 Instruções adicionais:
 
