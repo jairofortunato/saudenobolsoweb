@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 interface AudioVisualizerProps {
   audioStream: MediaStream | null;
   isRecording: boolean;
+  isProcessing?: boolean; // New prop for loading state
   onToggleRecording?: () => void;
   className?: string;
 }
@@ -12,6 +13,7 @@ interface AudioVisualizerProps {
 export function AudioVisualizer({ 
   audioStream, 
   isRecording, 
+  isProcessing = false,
   onToggleRecording,
   className 
 }: AudioVisualizerProps) {
@@ -116,16 +118,45 @@ export function AudioVisualizer({
           <button
             type="button"
             onClick={onToggleRecording}
-            className={`pointer-events-auto rounded-full shadow-2xl transition-all duration-200 ease-out active:scale-95 hover:scale-105 flex items-center justify-center text-white ${
-              isRecording ? 'bg-black hover:bg-red-600' : 'bg-black hover:bg-slate-900'
+            disabled={isProcessing}
+            className={`pointer-events-auto rounded-full shadow-2xl transition-all duration-200 ease-out flex items-center justify-center text-white ${
+              isProcessing 
+                ? 'bg-blue-600 cursor-not-allowed' 
+                : isRecording 
+                  ? 'bg-black hover:bg-red-600 active:scale-95 hover:scale-105' 
+                  : 'bg-black hover:bg-slate-900 active:scale-95 hover:scale-105'
             } ${'w-28 h-28 md:w-36 md:h-36'}`}
-            aria-label={isRecording ? 'Parar gravação' : 'Iniciar gravação'}
+            aria-label={
+              isProcessing 
+                ? 'Processando áudio...' 
+                : isRecording 
+                  ? 'Parar gravação' 
+                  : 'Iniciar gravação'
+            }
           >
-            {isRecording ? (
+            {isProcessing ? (
+              // Loading spinner
+              <div className="animate-spin w-10 h-10 md:w-12 md:h-12">
+                <svg className="w-full h-full" viewBox="0 0 24 24" fill="none">
+                  <circle 
+                    cx="12" 
+                    cy="12" 
+                    r="10" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round"
+                    strokeDasharray="60 40"
+                    className="opacity-75"
+                  />
+                </svg>
+              </div>
+            ) : isRecording ? (
+              // Stop recording icon (square)
               <svg className="w-9 h-9 md:w-11 md:h-11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <rect x="6.5" y="6.5" width="11" height="11" rx="2.2" />
               </svg>
             ) : (
+              // Microphone icon
               <svg className="w-10 h-10 md:w-12 md:h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v4a3 3 0 0 0 3 3Z" fill="currentColor" stroke="currentColor" />
                 <path d="M19 11a7 7 0 0 1-14 0" stroke="currentColor" />

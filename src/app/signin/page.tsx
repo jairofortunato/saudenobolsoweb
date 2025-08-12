@@ -247,14 +247,12 @@ function SigninContent() {
           <Card className="mt-6 bg-yellow-50 border-yellow-200">
             <CardContent className="p-4">
               <h3 className="text-sm font-semibold text-yellow-800 mb-2">
-                Contas de Demonstração
+                Conta de Demonstração
               </h3>
               <div className="space-y-2 text-xs text-yellow-700">
+          
                 <div>
-                  <strong>Paciente:</strong> buildsellwebstudio@gmail.com / Iamcoming99
-                </div>
-                <div>
-                  <strong>Médico:</strong> doctor@demo.com / demo123
+                  <strong>Médico:</strong> gabrielsmeister@gmail.com / Saude2025!
                 </div>
               </div>
             </CardContent>

@@ -33,7 +33,16 @@ interface ProntoDocPageProps {
 }
 
 export function ProntoDocPage({ className }: ProntoDocPageProps) {
-  const [selectedPatient, setSelectedPatient] = useState<PatientProfile | null>(null);
+  // Create a default test patient to bypass patient selection for testing
+  const defaultTestPatient: PatientProfile = {
+    id: 'test-patient-001',
+    name: 'Paciente de Teste',
+    cpf: '000.000.000-00',
+    pin: '123456',
+    isExisting: false
+  };
+
+  const [selectedPatient, setSelectedPatient] = useState<PatientProfile | null>(defaultTestPatient);
   const [selectedTemplate, setSelectedTemplate] = useState<ConsultationTemplate | null>(null);
   const [generatedProntuario, setGeneratedProntuario] = useState<string>('');
 
@@ -55,13 +64,24 @@ export function ProntoDocPage({ className }: ProntoDocPageProps) {
     setGeneratedProntuario(prontuario);
   };
 
+  // Clear parent prontuario state when new recording starts
+  const handleClearProntuario = () => {
+    setGeneratedProntuario('');
+  };
+
+  // Hidden patient selection for testing - set to true to enable patient selection
+  const ENABLE_PATIENT_SELECTION = false;
+
   return (
     <div className={`min-h-screen bg-gray-50 p-4 ${className}`}>
       <div className="max-w-4xl mx-auto space-y-24">
-        <PatientSearchAndDisplay 
-          onPatientSelected={handlePatientSelection}
-          disabled={false}
-        />
+        {/* Patient Selection - Hidden for testing but preserved for future use */}
+        {ENABLE_PATIENT_SELECTION && (
+          <PatientSearchAndDisplay 
+            onPatientSelected={handlePatientSelection}
+            disabled={false}
+          />
+        )}
 
         {/* =====================================
             CONSULTATION TEMPLATE SELECTION
@@ -92,6 +112,7 @@ export function ProntoDocPage({ className }: ProntoDocPageProps) {
           selectedPatient={selectedPatient}
           selectedTemplate={selectedTemplate}
           onProntuarioGenerated={handleProntuarioGenerated}
+          onClearProntuario={handleClearProntuario}
         />
 
         {generatedProntuario && selectedPatient && (

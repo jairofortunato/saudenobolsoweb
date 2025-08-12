@@ -28,14 +28,8 @@ export const hasPermission = (
  * Get dashboard route based on user role
  */
 export const getDashboardRoute = (role: UserRole): string => {
-  switch (role) {
-    case 'patient':
-      return '/dashboard';
-    case 'doctor':
-      return '/doctor/dashboard';
-    default:
-      return '/';
-  }
+  // Redirect all users to main page after sign-in
+  return '/';
 };
 
 /**

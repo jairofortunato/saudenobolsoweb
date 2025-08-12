@@ -35,9 +35,21 @@ interface FormErrors {
   [key: string]: string;
 }
 
+// Hidden patient signup mode - can be enabled by adding ?mode=patient to URL
+const ENABLE_PATIENT_SIGNUP = false; // Set to true to show patient fields
+
 export default function SignupPage() {
   const router = useRouter();
   const { signUp, loading, error: authError, user } = useAuth();
+  
+  // Check URL params for patient mode (hidden feature)
+  const [isPatientMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('mode') === 'patient' && ENABLE_PATIENT_SIGNUP;
+    }
+    return false;
+  });
   
   const [formData, setFormData] = useState<FormData>({
     email: '',
@@ -45,7 +57,7 @@ export default function SignupPage() {
     confirmPassword: '',
     cpf: '',
     pin: '',
-    role: '',
+    role: isPatientMode ? '' : 'doctor', // Default to doctor for simplified UI
     fullName: ''
   });
   
@@ -88,20 +100,24 @@ export default function SignupPage() {
       newErrors.confirmPassword = 'Senhas não coincidem';
     }
 
-    // CPF validation
-    const cpfValidation = validateCPF(formData.cpf);
-    if (!cpfValidation.isValid) {
-      newErrors.cpf = cpfValidation.error!;
+    // CPF validation (only for patient mode)
+    if (isPatientMode) {
+      const cpfValidation = validateCPF(formData.cpf);
+      if (!cpfValidation.isValid) {
+        newErrors.cpf = cpfValidation.error!;
+      }
     }
 
-    // PIN validation
-    const pinValidation = validatePIN(formData.pin.replace(/\s/g, ''));
-    if (!pinValidation.isValid) {
-      newErrors.pin = pinValidation.error!;
+    // PIN validation (only for patient mode)
+    if (isPatientMode) {
+      const pinValidation = validatePIN(formData.pin.replace(/\s/g, ''));
+      if (!pinValidation.isValid) {
+        newErrors.pin = pinValidation.error!;
+      }
     }
 
-    // Role validation
-    if (!formData.role) {
+    // Role validation (only for patient mode, doctor is default)
+    if (isPatientMode && !formData.role) {
       newErrors.role = 'Tipo de usuário é obrigatório';
     }
 
@@ -125,23 +141,28 @@ export default function SignupPage() {
     setIsSubmitting(true);
     
     try {
-      // Patient signup with automatic doctor-created profile linking
-      // The CPF will be used by the database trigger to link any existing profile
-      const result = await signUp({
+      // Prepare signup data based on mode
+      const signupData: any = {
         email: formData.email,
         password: formData.password,
-        cpf: formData.cpf.replace(/\D/g, ''), // Remove formatting
-        pin: formData.pin.replace(/\s/g, ''), // Remove formatting
         role: formData.role as UserRole,
         fullName: formData.fullName
-      });
+      };
+
+      // Only include CPF and PIN for patient mode
+      if (isPatientMode) {
+        signupData.cpf = formData.cpf.replace(/\D/g, ''); // Remove formatting
+        signupData.pin = formData.pin.replace(/\s/g, ''); // Remove formatting
+      }
+
+      const result = await signUp(signupData);
 
       if (result.success) {
         if (result.requiresEmailConfirmation) {
           // Show email confirmation message instead of success
           setErrors({ email: 'Verifique seu email para confirmar a conta e tente novamente.' });
         } else {
-          console.log('✅ Patient signup successful - check console for linking details');
+          console.log(`✅ ${isPatientMode ? 'Patient' : 'Doctor'} signup successful`);
           setShowSuccess(true);
           // Redirect will happen automatically via useEffect when user state updates
         }
@@ -186,7 +207,10 @@ export default function SignupPage() {
             </div>
             <h2 className="text-2xl font-bold text-slate-800 mb-2">Conta criada com sucesso!</h2>
             <p className="text-slate-600 mb-6">
-              Sua conta foi criada e seus dados médicos foram vinculados automaticamente.<br/>
+              {isPatientMode 
+                ? 'Sua conta foi criada e seus dados médicos foram vinculados automaticamente.' 
+                : 'Sua conta de médico foi criada com sucesso!'
+              }<br/>
               Você será redirecionado para o login em instantes...
             </p>
             <div className="animate-spin h-6 w-6 border-2 border-blue-300 border-t-blue-600 rounded-full mx-auto mb-4"></div>
@@ -206,10 +230,13 @@ export default function SignupPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-slate-800 mb-2">
-            Criar Conta
+            {isPatientMode ? 'Criar Conta - Paciente' : 'Criar Conta - Médico'}
           </h1>
           <p className="text-slate-600">
-            Cadastre-se no Saúde no Bolso
+            {isPatientMode 
+              ? 'Cadastre-se como paciente no Saúde no Bolso'
+              : 'Cadastre-se como médico no ProntoDoc'
+            }
           </p>
         </div>
 
@@ -254,34 +281,38 @@ export default function SignupPage() {
                 />
               </FormField>
 
-              {/* CPF */}
-              <FormField 
-                label="CPF" 
-                required
-                error={errors.cpf}
-                helperText="Seu CPF será usado para verificação de identidade"
-              >
-                <CPFInput
-                  value={formData.cpf}
-                  onChange={handleCPFChange}
-                  placeholder="000.000.000-00"
-                />
-              </FormField>
+              {/* CPF - Only show in patient mode */}
+              {isPatientMode && (
+                <FormField 
+                  label="CPF" 
+                  required
+                  error={errors.cpf}
+                  helperText="Seu CPF será usado para verificação de identidade"
+                >
+                  <CPFInput
+                    value={formData.cpf}
+                    onChange={handleCPFChange}
+                    placeholder="000.000.000-00"
+                  />
+                </FormField>
+              )}
 
-              {/* PIN */}
-              <FormField 
-                label="PIN de Emergência" 
-                required
-                error={errors.pin}
-                helperText="6 dígitos únicos para acesso médico de emergência"
-              >
-                <PINInput
-                  value={formData.pin}
-                  onChange={handlePINChange}
-                  placeholder="000 000"
-                  showValue={false}
-                />
-              </FormField>
+              {/* PIN - Only show in patient mode */}
+              {isPatientMode && (
+                <FormField 
+                  label="PIN de Emergência" 
+                  required
+                  error={errors.pin}
+                  helperText="6 dígitos únicos para acesso médico de emergência"
+                >
+                  <PINInput
+                    value={formData.pin}
+                    onChange={handlePINChange}
+                    placeholder="000 000"
+                    showValue={false}
+                  />
+                </FormField>
+              )}
 
               {/* Password Fields */}
               <div className="grid gap-6 md:grid-cols-2">
@@ -312,19 +343,23 @@ export default function SignupPage() {
                 </FormField>
               </div>
 
-              {/* Role Selector */}
-              <FormField 
-                label="Tipo de Usuário" 
-                required
-                error={errors.role}
-                helperText="Selecione como você irá usar o sistema"
-              >
-                <RoleSelector
-                  value={formData.role === '' ? undefined : formData.role as UserRole}
-                  onChange={handleRoleChange}
+              {/* Role Selector - Only show in patient mode */}
+              {isPatientMode && (
+                <FormField 
+                  label="Tipo de Usuário" 
                   required
-                />
-              </FormField>
+                  error={errors.role}
+                  helperText="Selecione como você irá usar o sistema"
+                >
+                  <RoleSelector
+                    value={formData.role === '' ? undefined : formData.role as UserRole}
+                    onChange={handleRoleChange}
+                    required
+                  />
+                </FormField>
+              )}
+
+              
 
               {/* Submit Button */}
               <div className="pt-4">

@@ -34,6 +34,7 @@ interface RecordingAndTranscriptionProps {
   selectedPatient: PatientProfile | null;
   selectedTemplate: ConsultationTemplate | null;
   onProntuarioGenerated: (prontuario: string) => void;
+  onClearProntuario?: () => void;
   className?: string;
 }
 
@@ -57,6 +58,7 @@ export function RecordingAndTranscription({
   selectedPatient, 
   selectedTemplate,
   onProntuarioGenerated,
+  onClearProntuario,
   className 
 }: RecordingAndTranscriptionProps) {
   const [isRecording, setIsRecording] = useState(false);
@@ -76,18 +78,34 @@ export function RecordingAndTranscription({
   const audioChunksRef = useRef<Blob[]>([]);
 
   const handleStartRecording = useCallback(async () => {
-    if (!selectedPatient) {
-      setError('Selecione um paciente.');
-      return;
-    }
+    // For testing mode, we'll skip patient validation
+    // if (!selectedPatient) {
+    //   setError('Selecione um paciente.');
+    //   return;
+    // }
 
-    if (!selectedTemplate) {
-      setError('Selecione um template.');
-      return;
-    }
+    // For testing mode, we'll skip template validation
+    // if (!selectedTemplate) {
+    //   setError('Selecione um template.');
+    //   return;
+    // }
 
     try {
       setError(null);
+      
+      // Clear ALL previous state when starting new recording
+      setProntuarioText('');
+      setIsEditingProntuario(false);
+      setTranscriptionResult(null);
+      setRecordedBlob(null);
+      setIsTranscribing(false);
+      setIsGeneratingProntuario(false);
+      setIsModalOpen(false);
+      
+      // Clear parent component's prontuario state as well
+      if (onClearProntuario) {
+        onClearProntuario();
+      }
       
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
@@ -151,7 +169,7 @@ export function RecordingAndTranscription({
   }, [isRecording, audioStream, recordingTime]);
 
   const handleTranscribeAudio = useCallback(async (audioBlob: Blob) => {
-    if (!selectedPatient || !audioBlob) {
+    if (!audioBlob) {
       setError('Nenhum áudio para transcrever.');
       return;
     }
@@ -165,7 +183,7 @@ export function RecordingAndTranscription({
       const formData = new FormData();
       formData.append('audio_file', audioBlob, 'recording.webm');
       formData.append('session_id', sessionId);
-      formData.append('patient_id', selectedPatient.id);
+      formData.append('patient_id', selectedPatient?.id || 'test-patient-001');
       formData.append('doctor_id', 'temp_doctor_id');
       formData.append('language', 'pt');
       formData.append('model', 'whisper-1');
@@ -199,26 +217,32 @@ export function RecordingAndTranscription({
       return;
     }
 
-    if (!selectedTemplate) {
-      setError('Nenhum template selecionado.');
-      return;
-    }
+    // For testing mode, we'll skip template validation - API will use default template
+    // if (!selectedTemplate) {
+    //   setError('Nenhum template selecionado.');
+    //   return;
+    // }
 
     setIsGeneratingProntuario(true);
     setError(null);
 
     try {
-      const requestBody = {
+      const requestBody: any = {
         transcript,
-        patient_name: selectedPatient?.name,
-        template_id: selectedTemplate.id,
-        template: {
+        patient_name: selectedPatient?.name || 'Paciente de Teste'
+      };
+
+      // Only include template data if a template is selected
+      if (selectedTemplate) {
+        requestBody.template_id = selectedTemplate.id;
+        requestBody.template = {
           name: selectedTemplate.name,
           specialty: selectedTemplate.specialty,
           template_structure: selectedTemplate.template_structure,
           ai_prompt_template: selectedTemplate.ai_prompt_template
-        }
-      };
+        };
+      }
+      // If no template is selected, the API will use the default clinical format
 
       const response = await fetch('/api/doctor/generate-prontuario', {
         method: 'POST',
@@ -268,7 +292,7 @@ export function RecordingAndTranscription({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patient_id: selectedPatient?.id,
+          patient_id: selectedPatient?.id || 'test-patient-001',
           prontuario_text: prontuarioText,
           consultation_id: null,
           reviewed_by_doctor: true
@@ -296,6 +320,25 @@ export function RecordingAndTranscription({
     setIsModalOpen(false);
   }, []);
 
+  const handleCopyProntuario = useCallback(async () => {
+    if (!prontuarioText.trim()) {
+      setError('Nenhum prontuário para copiar.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(prontuarioText);
+      // Show temporary success feedback
+      const originalError = error;
+      setError('✅ Prontuário copiado para a área de transferência!');
+      setTimeout(() => {
+        setError(originalError);
+      }, 2000);
+    } catch (err) {
+      setError('Erro ao copiar prontuário. Tente novamente.');
+    }
+  }, [prontuarioText, error]);
+
   useEffect(() => {
     if (recordedBlob && !isRecording) {
       handleTranscribeAudio(recordedBlob);
@@ -308,9 +351,10 @@ export function RecordingAndTranscription({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (!selectedPatient) {
-    return null;
-  }
+  // Removed patient validation - component now works in test mode without patient selection
+  // if (!selectedPatient) {
+  //   return null;
+  // }
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -329,6 +373,7 @@ export function RecordingAndTranscription({
         <AudioVisualizer 
           audioStream={audioStream}
           isRecording={isRecording}
+          isProcessing={isTranscribing || isGeneratingProntuario}
           onToggleRecording={isRecording ? handleStopRecording : handleStartRecording}
           className="w-full max-w-5xl"
         />
@@ -349,15 +394,29 @@ export function RecordingAndTranscription({
             </h2>
           )}
 
+          {/* Copy Button - Show above textarea */}
+          <div className="flex justify-end">
+            <Button 
+              onClick={handleCopyProntuario}
+              variant="outline"
+              className="px-4 py-2 text-sm bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 hover:text-blue-800"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Copiar
+            </Button>
+          </div>
+
           {isEditingProntuario ? (
             <textarea
               value={prontuarioText}
               onChange={(e) => setProntuarioText(e.target.value)}
-              className="w-full h-200 p-3 border rounded text-sm font-mono resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full h-200 p-4 border rounded text-base font-mono resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 leading-relaxed"
               placeholder="Prontuário aqui..."
             />
           ) : (
-            <div className="p-3 bg-gray-50 border rounded h-56 overflow-y-auto text-sm whitespace-pre-wrap font-mono text-left">
+            <div className="p-4 bg-gray-50 border rounded h-56 overflow-y-auto text-base whitespace-pre-wrap font-mono text-left leading-relaxed">
               {prontuarioText}
             </div>
           )}
@@ -368,14 +427,11 @@ export function RecordingAndTranscription({
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         prontuarioText={prontuarioText}
-        patientName={selectedPatient?.name}
+        patientName={selectedPatient?.name || 'Paciente de Teste'}
         templateName={selectedTemplate?.name}
       />
 
       <div className="flex items-center justify-center gap-2">
-        <Button onClick={handleSaveProntuario} className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 text-sm">Salvar</Button>
-        <Button onClick={handleOpenModal} variant="outline" className="px-3 py-2 text-sm">Visualizar</Button>
-        <Button onClick={handleClearResults} variant="outline" className="px-3 py-2 text-sm text-red-600 hover:text-red-700">Limpar</Button>
       </div>
     </div>
   );

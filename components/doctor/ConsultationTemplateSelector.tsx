@@ -235,7 +235,7 @@ Não invente dados. Apenas use o que está presente na transcrição.`);
 
       <div className="text-center space-y-6">
         <h2 className="text-3xl font-bold text-gray-900 mb-8">
-          Qual template de consulta?
+          Qual formato do prontuario?
         </h2>
         
         <div className="relative  mx-auto">
@@ -267,18 +267,7 @@ Não invente dados. Apenas use o que está presente na transcrição.`);
           
           {selectedTemplate && (
             <div className="mt-4 p-4 rounded-lg">
-              <div className="">
-             
-                <Button
-                  onClick={() => setShowCreateForm(!showCreateForm)}
-                  variant="outline"
-                  disabled={disabled || isLoading || isFallbackMode}
-                  className="text-sm"
-                  title={isFallbackMode ? 'Configure o Supabase para criar templates personalizados' : ''}
-                >
-                  {showCreateForm ? '❌ Cancelar' : isFallbackMode ? '🔒 Novo' : '➕ Novo Template'}
-                </Button>
-              </div>
+         
             </div>
           )}
 
@@ -286,7 +275,7 @@ Não invente dados. Apenas use o que está presente na transcrição.`);
             <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Template *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Formato do Prontuário *</label>
                   <Input
                     type="text"
                     value={newTemplateName}

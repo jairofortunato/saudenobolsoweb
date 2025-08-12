@@ -5,19 +5,19 @@ import { NextRequest, NextResponse } from 'next/server';
  * PRONTUÁRIO GENERATION API ROUTE
  * =====================================
  * 
- * This API route handles SOAP prontuário generation using GPT-4o.
+ * This API route handles clinical prontuário generation using GPT-4o.
  * It takes a medical transcription and converts it into a structured 
- * medical record in Portuguese following SOAP methodology.
+ * medical record in Portuguese following clinical documentation standards.
  * 
  * WORKFLOW:
  * 1. Receives transcription text from RecordingAndTranscription component
  * 2. Sends to OpenAI GPT-4o with specialized medical prompt
- * 3. Returns structured SOAP prontuário in Portuguese
+ * 3. Returns structured clinical prontuário in Portuguese
  * 
  * OPENAI INTEGRATION:
- * - Model: GPT-4o (most capable model for medical analysis)
+ * - Model: GPT-4o (advanced model for medical analysis)
  * - Temperature: 0.3 (balanced creativity with medical accuracy)
- * - Max tokens: 2000 (sufficient for comprehensive prontuário)
+ * - Max completion tokens: 2000 (sufficient for comprehensive prontuário)
  * 
  * SOAP FORMAT:
  * - S (Subjetivo): Patient's reported symptoms and history
@@ -91,60 +91,92 @@ export async function POST(request: NextRequest) {
       console.log('📋 [GENERATE-PRONTUARIO] Using provided template:', templateName);
     } else if (instruction && instruction.trim()) {
       // Fallback to legacy instruction parameter
-      aiPromptTemplate = `Você é um assistente médico especializado em organizar transcrições de consultas médicas em prontuários estruturados seguindo a metodologia SOAP.
+      aiPromptTemplate = `Você é um assistente médico especializado em registros clínicos. A seguir, você receberá a transcrição de uma conversa entre um médico e um paciente. Sua tarefa é transformar essa transcrição em um prontuário clínico estruturado no seguinte formato:
 
-Sua tarefa é analisar a transcrição fornecida e organizá-la em um prontuário médico estruturado em português brasileiro, seguindo rigorosamente este formato:
+🧾 Prontuário:
 
-## PRONTUÁRIO MÉDICO
+Alergias:
 
-**PACIENTE:** ${patient_name || '[Nome do paciente]'}
-**DATA:** ${new Date().toLocaleDateString('pt-BR')}
-**TIPO:** Consulta médica
+Liste aqui as alergias mencionadas. Se o paciente não relatar nenhuma, escreva "Não referidas".
 
----
+MUC:
 
-### S - SUBJETIVO
-[Queixa principal e história relatada pelo paciente]
-- Sintomas descritos pelo paciente
-- Duração e características dos sintomas
-- Fatores de melhora ou piora
-- História médica relevante mencionada
+Liste as medicações que o paciente faz uso contínuo. Se não houver, escreva "Não referidas".
 
-### O - OBJETIVO  
-[Achados do exame físico e dados objetivos]
-- Sinais vitais (se mencionados)
-- Exame físico realizado
-- Achados clínicos observados
-- Resultados de exames (se disponíveis)
+Comorbidades:
 
-### A - AVALIAÇÃO
-[Impressão diagnóstica e análise clínica]
-- Hipótese(s) diagnóstica(s)
-- Diagnóstico diferencial (se aplicável)
-- Gravidade do quadro clínico
+Liste as condições clínicas prévias relatadas. Se não houver, escreva "Não referidas".
 
-### P - PLANO
-[Conduta terapêutica e orientações]
-- Medicamentos prescritos
-- Exames solicitados
-- Orientações gerais
-- Retorno e seguimento
+S:
 
----
+Descreva o que o paciente relatou espontaneamente sobre seus sintomas, queixas, histórico do problema, e impacto nas atividades diárias.
 
-**OBSERVAÇÕES IMPORTANTES:**
-- Use apenas informações presentes na transcrição
-- Mantenha linguagem médica apropriada
-- Se alguma informação não foi mencionada, escreva "Não referido" ou "Não avaliado"
-- Seja preciso e objetivo
-- Organize as informações de forma clara e profissional`;
+O:
+
+Descreva os achados clínicos observados pelo médico, como inspeção, palpação, ausculta, sinais clínicos, exames físicos (se mencionados).
+
+A (Na avaliação seja mais objetivo, utilize apenas palavras (exemplos: HAS, bursite do ombro, fibromialgia), quando estiver com dúvida diagnóstica coloque um ponto de interrogação (exemplo: insuficiência cardíaca?):
+
+Informe a hipótese diagnóstica do médico com base nas informações subjetivas e objetivas.
+
+P: (escrito em primeira pessoa do presente):
+
+Descreva a conduta proposta pelo médico: exames solicitados, medicamentos prescritos, orientações ou encaminhamentos.
+
+Instruções adicionais:
+
+- Tire todos asteriscos na formatacao do prontuario
+- Palavras estranhas ou incompletas provavelmente são erros da transcrição passando nomes de remédios ou doencas, corrija.
+- Resuma com linguagem clínica e objetiva
+- Organize em formato limpo e fácil de ler
+- Se uma informação não for mencionada na transcrição, use "Não referido(a)" no campo correspondente
+- Não invente dados. Apenas use o que está presente na transcrição`;
       console.log('📋 [GENERATE-PRONTUARIO] Using legacy instruction parameter');
     } else {
-      console.error('❌ [GENERATE-PRONTUARIO] No template or instruction provided');
-      return NextResponse.json(
-        { success: false, error: 'Template or instruction is required' },
-        { status: 400 }
-      );
+      // Use default clinical format when no template or instruction is provided
+      aiPromptTemplate = `Você é um assistente médico especializado em registros clínicos. A seguir, você receberá a transcrição de uma conversa entre um médico e um paciente. Sua tarefa é transformar essa transcrição em um prontuário clínico estruturado no seguinte formato:
+
+🧾 Prontuário:
+
+Alergias:
+
+Liste aqui as alergias mencionadas. Se o paciente não relatar nenhuma, escreva "Não referidas".
+
+MUC:
+
+Liste as medicações que o paciente faz uso contínuo. Se não houver, escreva "Não referidas".
+
+Comorbidades:
+
+Liste as condições clínicas prévias relatadas. Se não houver, escreva "Não referidas".
+
+S:
+
+Descreva o que o paciente relatou espontaneamente sobre seus sintomas, queixas, histórico do problema, e impacto nas atividades diárias.
+
+O:
+
+Descreva os achados clínicos observados pelo médico, como inspeção, palpação, ausculta, sinais clínicos, exames físicos (se mencionados).
+
+A (Na avaliação seja mais objetivo, utilize apenas palavras (exemplos: HAS, bursite do ombro, fibromialgia), quando estiver com dúvida diagnóstica coloque um ponto de interrogação (exemplo: insuficiência cardíaca?):
+
+Informe a hipótese diagnóstica do médico com base nas informações subjetivas e objetivas.
+
+P: (escrito em primeira pessoa do presente):
+
+Descreva a conduta proposta pelo médico: exames solicitados, medicamentos prescritos, orientações ou encaminhamentos.
+
+Instruções adicionais:
+
+- Tire todos asteriscos na formatacao do prontuario
+- Palavras estranhas ou incompletas provavelmente são erros da transcrição passando nomes de remédios ou doencas, corrija.
+- Resuma com linguagem clínica e objetiva
+- Organize em formato limpo e fácil de ler
+- Se uma informação não for mencionada na transcrição, use "Não referido(a)" no campo correspondente
+- Não invente dados. Apenas use o que está presente na transcrição`;
+      templateName = 'Consulta Geral (Formato Clínico)';
+      templateSpecialty = 'Clínica Geral';
+      console.log('📋 [GENERATE-PRONTUARIO] Using default clinical format template');
     }
 
     // Check OpenAI API key
@@ -204,7 +236,7 @@ Por favor, organize esta transcrição em um prontuário estruturado conforme as
           }
         ],
         temperature: 0.3,
-        max_tokens: 2000,
+        max_completion_tokens: 2000,
         top_p: 1,
         frequency_penalty: 0,
         presence_penalty: 0

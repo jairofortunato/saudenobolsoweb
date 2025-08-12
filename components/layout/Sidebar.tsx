@@ -118,11 +118,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
 
     const patientNavItems = [
       { 
-        href: '/dashboard', 
-        label: 'Início', 
-        icon: <IconHome />,
-      },
-      { 
         href: '/medications', 
         label: 'Medicamentos', 
         icon: <IconPill />,
@@ -155,12 +150,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         label: 'Prontuário', 
         icon: <IconFileText />,
       },
-      { 
-        href: '/doctor/dashboard', 
-        label: 'Dashboard', 
-        icon: <IconHospital />,
-      },
-    
     ];
 
     const navigationItems = isDoctor ? doctorNavItems : patientNavItems;
