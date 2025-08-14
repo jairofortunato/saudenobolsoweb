@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { PatientSearchAndDisplay } from './PatientSearchAndDisplay';
 import { RecordingAndTranscription } from './RecordingAndTranscription';
 import { ConsultationTemplateSelector } from './ConsultationTemplateSelector';
+import { ErrorBoundary } from '../ErrorBoundary';
 
 interface PatientProfile {
   id: string;
@@ -108,12 +109,39 @@ export function ProntoDocPage({ className }: ProntoDocPageProps) {
              - POST /api/doctor/transcribe-audio → forwards to AI processor OpenAI Whisper
              - POST /api/doctor/generate-prontuario → uses GPT-4o for SOAP generation
         */}
-        <RecordingAndTranscription 
-          selectedPatient={selectedPatient}
-          selectedTemplate={selectedTemplate}
-          onProntuarioGenerated={handleProntuarioGenerated}
-          onClearProntuario={handleClearProntuario}
-        />
+        <ErrorBoundary
+          fallback={
+            <div className="max-w-4xl mx-auto p-6 bg-red-50 border border-red-200 rounded-lg">
+              <h3 className="text-lg font-semibold text-red-800 mb-2">
+                Erro no Sistema de Gravação
+              </h3>
+              <p className="text-red-700 mb-4">
+                Ocorreu um erro no sistema de gravação e transcrição. 
+                Tente recarregar a página ou entre em contato com o suporte.
+              </p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                Recarregar Página
+              </button>
+            </div>
+          }
+          onError={(error, errorInfo) => {
+            console.error('🚨 [PRONTODOC] Recording component error:', {
+              error: error.message,
+              stack: error.stack,
+              componentStack: errorInfo.componentStack
+            });
+          }}
+        >
+          <RecordingAndTranscription 
+            selectedPatient={selectedPatient}
+            selectedTemplate={selectedTemplate}
+            onProntuarioGenerated={handleProntuarioGenerated}
+            onClearProntuario={handleClearProntuario}
+          />
+        </ErrorBoundary>
 
         {generatedProntuario && selectedPatient && (
           <div className="">

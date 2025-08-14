@@ -184,6 +184,12 @@ Instruções adicionais:
 
     // Check OpenAI API key
     const openaiApiKey = process.env.OPENAI_API_KEY;
+    console.log('🔑 [GENERATE-PRONTUARIO] OpenAI API configuration:', {
+      hasApiKey: !!openaiApiKey,
+      keyLength: openaiApiKey ? openaiApiKey.length : 0,
+      keyPrefix: openaiApiKey ? openaiApiKey.substring(0, 7) + '...' : 'None'
+    });
+    
     if (!openaiApiKey) {
       console.error('❌ [GENERATE-PRONTUARIO] OpenAI API key not configured');
       return NextResponse.json(
@@ -212,10 +218,32 @@ ${transcript}
 
 Por favor, organize esta transcrição em um prontuário estruturado conforme as instruções do template.`;
 
+    const requestPayload = {
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user', 
+          content: userPrompt
+        }
+      ],
+      temperature: 0.3,
+      max_completion_tokens: 2000,
+      top_p: 1,
+      frequency_penalty: 0,
+      presence_penalty: 0
+    };
+
     console.log('🤖 [GENERATE-PRONTUARIO] Sending request to OpenAI...');
     console.log('  - Model: gpt-4o');
     console.log('  - System prompt length:', systemPrompt.length);
     console.log('  - User prompt length:', userPrompt.length);
+    console.log('  - Temperature:', requestPayload.temperature);
+    console.log('  - Max completion tokens:', requestPayload.max_completion_tokens);
+    console.log('  - Total characters to process:', systemPrompt.length + userPrompt.length);
 
     const startTime = Date.now();
 
@@ -226,31 +254,16 @@ Por favor, organize esta transcrição em um prontuário estruturado conforme as
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${openaiApiKey}`
       },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user', 
-            content: userPrompt
-          }
-        ],
-        temperature: 0.3,
-        max_completion_tokens: 2000,
-        top_p: 1,
-        frequency_penalty: 0,
-        presence_penalty: 0
-      })
+      body: JSON.stringify(requestPayload)
     });
 
     const processingTime = Date.now() - startTime;
 
     console.log('📥 [GENERATE-PRONTUARIO] OpenAI response:');
     console.log('  - Status:', openaiResponse.status);
+    console.log('  - Status Text:', openaiResponse.statusText);
     console.log('  - Processing time:', processingTime, 'ms');
+    console.log('  - Response Headers:', Object.fromEntries(openaiResponse.headers.entries()));
 
     if (!openaiResponse.ok) {
       const errorData = await openaiResponse.json().catch(() => ({}));

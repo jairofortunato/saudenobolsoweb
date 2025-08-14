@@ -100,10 +100,13 @@ export async function POST(request: NextRequest) {
     const transcriptionUrl = `${aiProcessorUrl.replace(/\/$/, '')}/api/prontodoc/prerecorded/transcribe-openai-whisper`;
     
     console.log('🌐 [TRANSCRIBE-AUDIO] AI Processor configuration:');
-    console.log('  - Base URL:', aiProcessorUrl);
+    console.log('  - NEXT_PUBLIC_AI_PROCESSOR_URL:', process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'Not set');
+    console.log('  - NEXT_PUBLIC_API_BASE_URL:', process.env.NEXT_PUBLIC_API_BASE_URL || 'Not set');
+    console.log('  - Final Base URL:', aiProcessorUrl);
     console.log('  - Transcription URL:', transcriptionUrl);
 
     console.log('📤 [TRANSCRIBE-AUDIO] Forwarding to AI processor...');
+    const startRequestTime = Date.now();
     
     // Forward request to AI processor
     const response = await fetch(transcriptionUrl, {
@@ -111,9 +114,13 @@ export async function POST(request: NextRequest) {
       body: aiProcessorFormData
     });
 
+    const requestDuration = Date.now() - startRequestTime;
+
     console.log('📥 [TRANSCRIBE-AUDIO] AI processor response:');
     console.log('  - Status:', response.status);
     console.log('  - Status Text:', response.statusText);
+    console.log('  - Request Duration:', requestDuration + 'ms');
+    console.log('  - Response Headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();

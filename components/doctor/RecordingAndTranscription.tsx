@@ -7,6 +7,8 @@ import {
 } from '../index';
 import { AudioVisualizer } from '../prontodoc/AudioVisualizer';
 import { ProntuarioModal } from '../prontodoc/ProntuarioModal';
+import { TranscriptionDisplay } from '../prontodoc/TranscriptionDisplay';
+import { useErrorHandler } from '../ErrorBoundary';
 
 interface PatientProfile {
   id: string;
@@ -78,8 +80,18 @@ export function RecordingAndTranscription({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const handleError = useErrorHandler();
 
   const handleStartRecording = useCallback(async () => {
+    console.log('🎙️ [RECORDING] Starting recording process');
+    console.log('🎙️ [RECORDING] Current state:', {
+      isRecording,
+      hasExistingProntuario: !!prontuarioText,
+      hasExistingTranscription: !!transcriptionResult,
+      selectedPatient: selectedPatient?.name || 'None',
+      selectedTemplate: selectedTemplate?.name || 'None'
+    });
+
     // For testing mode, we'll skip patient validation
     // if (!selectedPatient) {
     //   setError('Selecione um paciente.');
@@ -95,6 +107,7 @@ export function RecordingAndTranscription({
     try {
       setError(null);
       
+      console.log('🧹 [RECORDING] Clearing all previous state');
       // Clear ALL previous state when starting new recording
       setProntuarioText('');
       setIsEditingProntuario(false);
@@ -107,9 +120,11 @@ export function RecordingAndTranscription({
       
       // Clear parent component's prontuario state as well
       if (onClearProntuario) {
+        console.log('🧹 [RECORDING] Clearing parent component state');
         onClearProntuario();
       }
       
+      console.log('🎤 [RECORDING] Requesting microphone access');
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
@@ -118,28 +133,51 @@ export function RecordingAndTranscription({
         } 
       });
       
+      console.log('✅ [RECORDING] Microphone access granted');
+      console.log('🎤 [RECORDING] Audio stream info:', {
+        active: stream.active,
+        id: stream.id,
+        tracks: stream.getAudioTracks().length
+      });
+      
       setAudioStream(stream);
       
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus'
       });
       
+      console.log('📹 [RECORDING] MediaRecorder created:', {
+        mimeType: mediaRecorder.mimeType,
+        state: mediaRecorder.state
+      });
+      
       audioChunksRef.current = [];
       
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
+          console.log('📊 [RECORDING] Data chunk received:', {
+            size: event.data.size,
+            type: event.data.type,
+            totalChunks: audioChunksRef.current.length + 1
+          });
           audioChunksRef.current.push(event.data);
         }
       };
       
       mediaRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        console.log('🛑 [RECORDING] Recording stopped, blob created:', {
+          size: audioBlob.size,
+          type: audioBlob.type,
+          totalChunks: audioChunksRef.current.length
+        });
         setRecordedBlob(audioBlob);
       };
       
       mediaRecorder.start(1000);
       mediaRecorderRef.current = mediaRecorder;
       
+      console.log('▶️ [RECORDING] Recording started');
       setIsRecording(true);
       setRecordingTime(0);
       
@@ -148,34 +186,72 @@ export function RecordingAndTranscription({
       }, 1000);
       
     } catch (error) {
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      console.error('❌ [RECORDING] Error starting recording:', {
+        name: errorObj.name,
+        message: errorObj.message
+      });
+      handleError(errorObj, 'Recording start failed');
       setError('Erro ao acessar o microfone. Verifique as permissões.');
     }
-  }, [selectedPatient, selectedTemplate]);
+  }, [selectedPatient, selectedTemplate, handleError]);
 
   const handleStopRecording = useCallback(() => {
+    console.log('⏹️ [RECORDING] Stopping recording process');
+    console.log('⏹️ [RECORDING] Current state:', {
+      isRecording,
+      recordingTime,
+      hasMediaRecorder: !!mediaRecorderRef.current,
+      hasAudioStream: !!audioStream,
+      audioChunksCount: audioChunksRef.current.length
+    });
+
     if (mediaRecorderRef.current && isRecording) {
+      console.log('📹 [RECORDING] Stopping MediaRecorder');
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current = null;
     }
     
     if (audioStream) {
-      audioStream.getTracks().forEach(track => track.stop());
+      console.log('🎤 [RECORDING] Stopping audio stream tracks');
+      audioStream.getTracks().forEach(track => {
+        console.log('🛑 [RECORDING] Stopping track:', {
+          kind: track.kind,
+          label: track.label,
+          enabled: track.enabled
+        });
+        track.stop();
+      });
       setAudioStream(null);
     }
     
     if (timerRef.current) {
+      console.log('⏰ [RECORDING] Clearing timer');
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
     
     setIsRecording(false);
     
+    console.log('✅ [RECORDING] Recording stopped successfully');
+    console.log('📊 [RECORDING] Final recording stats:', {
+      duration: recordingTime,
+      audioChunks: audioChunksRef.current.length
+    });
+    
     // Show the "Pronto doctor!" alert after recording stops
     setShowRecordingCompleteAlert(true);
   }, [isRecording, audioStream, recordingTime]);
 
   const handleTranscribeAudio = useCallback(async (audioBlob: Blob) => {
+    console.log('🎤 [TRANSCRIPTION] Starting audio transcription process');
+    console.log('🎤 [TRANSCRIPTION] Audio blob info:', {
+      size: audioBlob?.size || 0,
+      type: audioBlob?.type || 'unknown'
+    });
+
     if (!audioBlob) {
+      console.error('❌ [TRANSCRIPTION] No audio blob provided');
       setError('Nenhum áudio para transcrever.');
       return;
     }
@@ -185,6 +261,7 @@ export function RecordingAndTranscription({
 
     try {
       const sessionId = `recording_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log('📋 [TRANSCRIPTION] Generated session ID:', sessionId);
       
       const formData = new FormData();
       formData.append('audio_file', audioBlob, 'recording.webm');
@@ -194,31 +271,83 @@ export function RecordingAndTranscription({
       formData.append('language', 'pt');
       formData.append('model', 'whisper-1');
 
+      console.log('📤 [TRANSCRIPTION] FormData prepared with fields:', {
+        audio_file_size: audioBlob.size,
+        session_id: sessionId,
+        patient_id: selectedPatient?.id || 'test-patient-001',
+        doctor_id: 'temp_doctor_id',
+        language: 'pt',
+        model: 'whisper-1'
+      });
+
+      console.log('📡 [TRANSCRIPTION] Sending request to /api/doctor/transcribe-audio');
+      const startTime = Date.now();
+
       const response = await fetch('/api/doctor/transcribe-audio', {
         method: 'POST',
         body: formData
       });
 
+      const requestTime = Date.now() - startTime;
+      console.log('📥 [TRANSCRIPTION] API response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        requestTime: `${requestTime}ms`,
+        ok: response.ok
+      });
+
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('❌ [TRANSCRIPTION] API error response:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText: errorText
+        });
         throw new Error(`Transcription failed: ${response.status} ${errorText}`);
       }
 
       const result: TranscriptionResult = await response.json();
+      console.log('✅ [TRANSCRIPTION] Transcription result:', {
+        success: result.success,
+        transcript_length: result.transcript?.length || 0,
+        confidence: result.confidence,
+        duration: result.duration,
+        word_count: result.word_count,
+        provider: result.provider,
+        transcript_preview: result.transcript?.substring(0, 100) + '...'
+      });
       
       setTranscriptionResult(result);
       setIsTranscribing(false);
       
+      console.log('🔄 [TRANSCRIPTION] Moving to prontuario generation phase');
       await handleGenerateProntuario(result.transcript);
       
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Erro na transcrição do áudio');
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      console.error('❌ [TRANSCRIPTION] Unexpected error:', {
+        name: errorObj.name,
+        message: errorObj.message,
+        stack: errorObj.stack
+      });
+      handleError(errorObj, 'Audio transcription failed');
+      setError(errorObj.message);
       setIsTranscribing(false);
     }
-  }, [selectedPatient]);
+  }, [selectedPatient, handleError]);
 
   const handleGenerateProntuario = useCallback(async (transcript: string) => {
+    console.log('📝 [PRONTUARIO] Starting prontuario generation process');
+    console.log('📝 [PRONTUARIO] Input validation:', {
+      transcript_length: transcript?.length || 0,
+      transcript_preview: transcript?.substring(0, 150) + '...',
+      patient_name: selectedPatient?.name || 'Paciente de Teste',
+      template_selected: !!selectedTemplate,
+      template_name: selectedTemplate?.name || 'None'
+    });
+
     if (!transcript.trim()) {
+      console.error('❌ [PRONTUARIO] No transcript provided');
       setError('Nenhuma transcrição disponível.');
       return;
     }
@@ -247,8 +376,25 @@ export function RecordingAndTranscription({
           template_structure: selectedTemplate.template_structure,
           ai_prompt_template: selectedTemplate.ai_prompt_template
         };
+        console.log('📋 [PRONTUARIO] Using selected template:', {
+          template_id: selectedTemplate.id,
+          template_name: selectedTemplate.name,
+          specialty: selectedTemplate.specialty,
+          has_prompt_template: !!selectedTemplate.ai_prompt_template
+        });
+      } else {
+        console.log('📋 [PRONTUARIO] No template selected - using default clinical format');
       }
-      // If no template is selected, the API will use the default clinical format
+
+      console.log('📤 [PRONTUARIO] Request body prepared:', {
+        transcript_length: requestBody.transcript.length,
+        patient_name: requestBody.patient_name,
+        has_template: !!requestBody.template,
+        template_id: requestBody.template_id || 'default'
+      });
+
+      console.log('📡 [PRONTUARIO] Sending request to /api/doctor/generate-prontuario');
+      const startTime = Date.now();
 
       const response = await fetch('/api/doctor/generate-prontuario', {
         method: 'POST',
@@ -258,24 +404,52 @@ export function RecordingAndTranscription({
         body: JSON.stringify(requestBody),
       });
 
+      const requestTime = Date.now() - startTime;
+      console.log('📥 [PRONTUARIO] API response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        requestTime: `${requestTime}ms`,
+        ok: response.ok
+      });
+
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('❌ [PRONTUARIO] API error response:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText: errorText
+        });
         throw new Error(`Prontuário generation failed: ${response.status} ${errorText}`);
       }
 
       const result: ProntuarioResult = await response.json();
+      console.log('✅ [PRONTUARIO] Prontuario generation result:', {
+        success: result.success,
+        prontuario_length: result.prontuario?.length || 0,
+        model: result.model,
+        processing_time: result.processing_time,
+        prontuario_preview: result.prontuario?.substring(0, 200) + '...'
+      });
       
       setProntuarioText(result.prontuario);
       setIsGeneratingProntuario(false);
       setIsEditingProntuario(true);
       
+      console.log('📊 [PRONTUARIO] State updated and callback invoked');
       onProntuarioGenerated(result.prontuario);
       
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Erro na geração do prontuário');
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      console.error('❌ [PRONTUARIO] Unexpected error:', {
+        name: errorObj.name,
+        message: errorObj.message,
+        stack: errorObj.stack
+      });
+      handleError(errorObj, 'Prontuario generation failed');
+      setError(errorObj.message);
       setIsGeneratingProntuario(false);
     }
-  }, [selectedPatient, selectedTemplate, onProntuarioGenerated]);
+  }, [selectedPatient, selectedTemplate, onProntuarioGenerated, handleError]);
 
   const handleClearResults = useCallback(() => {
     setRecordedBlob(null);
@@ -315,9 +489,15 @@ export function RecordingAndTranscription({
       alert('Prontuário salvo com sucesso!');
       
     } catch (error) {
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      console.error('❌ [SAVE-PRONTUARIO] Error saving prontuario:', {
+        name: errorObj.name,
+        message: errorObj.message
+      });
+      handleError(errorObj, 'Prontuario save failed');
       setError('Erro ao salvar prontuário.');
     }
-  }, [prontuarioText, selectedPatient]);
+  }, [prontuarioText, selectedPatient, handleError]);
 
   const handleOpenModal = useCallback(() => {
     setIsModalOpen(true);
@@ -351,8 +531,18 @@ export function RecordingAndTranscription({
   }, []);
 
   useEffect(() => {
+    console.log('🔄 [EFFECT] recordedBlob/isRecording effect triggered:', {
+      hasRecordedBlob: !!recordedBlob,
+      recordedBlobSize: recordedBlob?.size || 0,
+      isRecording,
+      shouldTriggerTranscription: !!(recordedBlob && !isRecording)
+    });
+
     if (recordedBlob && !isRecording) {
+      console.log('🚀 [EFFECT] Triggering transcription process');
       handleTranscribeAudio(recordedBlob);
+    } else {
+      console.log('⏸️ [EFFECT] Transcription not triggered - waiting for recording to complete');
     }
   }, [recordedBlob, isRecording, handleTranscribeAudio]);
 
@@ -441,6 +631,14 @@ export function RecordingAndTranscription({
             </div>
           )}
         </div>
+      )}
+
+      {/* Transcription Display - Show below prontuario after recording ends */}
+      {transcriptionResult && !isRecording && (
+        <TranscriptionDisplay 
+          transcriptionResult={transcriptionResult}
+          className="max-w-4xl mx-auto mt-8"
+        />
       )}
 
       <ProntuarioModal
