@@ -283,10 +283,20 @@ export function RecordingAndTranscription({
       console.log('📡 [TRANSCRIPTION] Sending request to /api/doctor/transcribe-audio');
       const startTime = Date.now();
 
+      // Create AbortController for timeout handling (10 minutes for long audio files)
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.warn('⏰ [TRANSCRIPTION] Request timeout - taking longer than 10 minutes');
+        abortController.abort();
+      }, 10 * 60 * 1000); // 10 minutes timeout for long audio transcription
+
       const response = await fetch('/api/doctor/transcribe-audio', {
         method: 'POST',
-        body: formData
+        body: formData,
+        signal: abortController.signal
       });
+
+      clearTimeout(timeoutId);
 
       const requestTime = Date.now() - startTime;
       console.log('📥 [TRANSCRIPTION] API response received:', {
@@ -330,8 +340,16 @@ export function RecordingAndTranscription({
         message: errorObj.message,
         stack: errorObj.stack
       });
+      
+      // Handle timeout errors specifically
+      if (errorObj.name === 'AbortError') {
+        setError('Timeout na transcrição - o áudio é muito longo. Tente gravar em segmentos menores.');
+        console.error('⏰ [TRANSCRIPTION] Request timed out after 10 minutes');
+      } else {
+        setError(errorObj.message);
+      }
+      
       handleError(errorObj, 'Audio transcription failed');
-      setError(errorObj.message);
       setIsTranscribing(false);
     }
   }, [selectedPatient, handleError]);
@@ -396,13 +414,23 @@ export function RecordingAndTranscription({
       console.log('📡 [PRONTUARIO] Sending request to /api/doctor/generate-prontuario');
       const startTime = Date.now();
 
+      // Create AbortController for timeout handling (5 minutes for long consultations)
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.warn('⏰ [PRONTUARIO] Request timeout - taking longer than 5 minutes');
+        abortController.abort();
+      }, 5 * 60 * 1000); // 5 minutes timeout for long transcriptions
+
       const response = await fetch('/api/doctor/generate-prontuario', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody),
+        signal: abortController.signal
       });
+
+      clearTimeout(timeoutId);
 
       const requestTime = Date.now() - startTime;
       console.log('📥 [PRONTUARIO] API response received:', {
@@ -445,8 +473,16 @@ export function RecordingAndTranscription({
         message: errorObj.message,
         stack: errorObj.stack
       });
+      
+      // Handle timeout errors specifically
+      if (errorObj.name === 'AbortError') {
+        setError('Timeout na geração do prontuário - a transcrição é muito longa. Tente resumir ou dividir em partes.');
+        console.error('⏰ [PRONTUARIO] Request timed out after 5 minutes');
+      } else {
+        setError(errorObj.message);
+      }
+      
       handleError(errorObj, 'Prontuario generation failed');
-      setError(errorObj.message);
       setIsGeneratingProntuario(false);
     }
   }, [selectedPatient, selectedTemplate, onProntuarioGenerated, handleError]);
@@ -589,9 +625,19 @@ export function RecordingAndTranscription({
         />
 
         {(isTranscribing || isGeneratingProntuario) && (
-          <div className="text-xs text-blue-700">
-            {isTranscribing && 'Transcrevendo...'}
-            {isGeneratingProntuario && 'Gerando prontuário...'}
+          <div className="flex flex-col items-center space-y-2">
+            <div className="text-xs text-blue-700">
+              {isTranscribing && 'Transcrevendo áudio... Isso pode levar alguns minutos para gravações longas.'}
+              {isGeneratingProntuario && 'Gerando prontuário... Analisando transcrição e estruturando documento médico.'}
+            </div>
+            {/* Progress bar for long operations */}
+            <div className="w-64 bg-gray-200 rounded-full h-1.5">
+              <div className="bg-blue-600 h-1.5 rounded-full animate-pulse" style={{width: '100%'}}></div>
+            </div>
+            <div className="text-xs text-gray-500">
+              {isTranscribing && 'Processamento de áudio em andamento...'}
+              {isGeneratingProntuario && 'Geração de prontuário em andamento...'}
+            </div>
           </div>
         )}
       </div>
@@ -622,12 +668,28 @@ export function RecordingAndTranscription({
             <textarea
               value={prontuarioText}
               onChange={(e) => setProntuarioText(e.target.value)}
-              className="w-full h-200 p-4 border rounded text-base font-mono resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 leading-relaxed"
+              className={`w-full p-4 border rounded text-base font-mono resize-y focus:ring-1 focus:ring-blue-500 focus:border-blue-500 leading-relaxed ${
+                prontuarioText.length > 3000 ? 'h-80' : 'h-200'
+              }`}
               placeholder="Prontuário aqui..."
             />
           ) : (
-            <div className="p-4 bg-gray-50 border rounded h-56 overflow-y-auto text-base whitespace-pre-wrap font-mono text-left leading-relaxed">
+            <div className={`p-4 bg-gray-50 border rounded overflow-y-auto text-base whitespace-pre-wrap font-mono text-left leading-relaxed ${
+              prontuarioText.length > 3000 ? 'h-80' : 'h-56'
+            }`}>
               {prontuarioText}
+              
+              {/* Show processing note if the prontuario was generated from a chunked transcript */}
+              {prontuarioText.includes('foi processada em seções') && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center text-blue-700 text-sm">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Transcrição muito longa foi processada em seções para garantir qualidade.
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

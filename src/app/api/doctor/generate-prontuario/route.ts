@@ -64,10 +64,17 @@ export async function POST(request: NextRequest) {
 
     console.log('📋 [GENERATE-PRONTUARIO] Request parameters:');
     console.log('  - transcript length:', transcript?.length || 0);
+    console.log('  - transcript word count:', transcript?.split(' ').length || 0);
     console.log('  - patient_name:', patient_name || 'Not provided');
     console.log('  - template_id:', template_id || 'Not provided');
     console.log('  - template name:', template?.name || 'Not provided');
     console.log('  - instruction (legacy):', instruction || 'Not provided');
+
+    // Check if transcript is extremely long (approaching context limits)
+    const isVeryLongTranscript = transcript.length > 100000; // ~25k tokens worth of text
+    if (isVeryLongTranscript) {
+      console.warn('⚠️ [GENERATE-PRONTUARIO] Very long transcript detected, may need chunking strategy');
+    }
 
     // Validate required fields
     if (!transcript || !transcript.trim()) {
@@ -218,6 +225,76 @@ ${transcript}
 
 Por favor, organize esta transcrição em um prontuário estruturado conforme as instruções do template.`;
 
+    // Handle very long transcripts by implementing chunking strategy
+    let finalTranscript = transcript;
+    let processingNote = '';
+
+    if (isVeryLongTranscript) {
+      console.log('📝 [GENERATE-PRONTUARIO] Implementing chunking strategy for very long transcript');
+      
+      // For extremely long transcripts, we'll take a strategic approach:
+      // 1. Take the first 30k characters (most detailed initial information)
+      // 2. Take the last 30k characters (conclusions and final assessments)
+      // 3. Sample key sections from the middle if needed
+      
+      const maxChunkSize = 30000; // ~7.5k tokens worth
+      const firstChunk = transcript.substring(0, maxChunkSize);
+      const lastChunk = transcript.substring(Math.max(0, transcript.length - maxChunkSize));
+      
+      // If there's significant middle content, try to extract key medical terms
+      let middleChunk = '';
+      if (transcript.length > maxChunkSize * 2) {
+        const middleStart = Math.floor(transcript.length / 3);
+        const middleEnd = Math.floor(transcript.length * 2 / 3);
+        const fullMiddle = transcript.substring(middleStart, middleEnd);
+        
+        // Extract sentences that contain key medical keywords
+        const medicalKeywords = [
+          'sintoma', 'dor', 'medicamento', 'tratamento', 'exame', 'diagnóstico',
+          'pressão', 'diabetes', 'coração', 'pulmão', 'abdomen', 'cabeça',
+          'febre', 'náusea', 'vômito', 'cansaço', 'falta de ar', 'tonteira'
+        ];
+        
+        const sentences = fullMiddle.split(/[.!?]+/);
+        const keyMedicalSentences = sentences.filter(sentence => 
+          medicalKeywords.some(keyword => 
+            sentence.toLowerCase().includes(keyword)
+          )
+        ).slice(0, 20); // Limit to 20 key sentences
+        
+        middleChunk = keyMedicalSentences.join('. ');
+        console.log('📝 [GENERATE-PRONTUARIO] Extracted key medical sentences from middle:', keyMedicalSentences.length);
+      }
+      
+      // Combine chunks with clear separation
+      finalTranscript = `INÍCIO DA CONSULTA:\n${firstChunk}\n\n`;
+      
+      if (middleChunk) {
+        finalTranscript += `PONTOS IMPORTANTES DO MEIO DA CONSULTA:\n${middleChunk}\n\n`;
+      }
+      
+      finalTranscript += `FINAL DA CONSULTA:\n${lastChunk}`;
+      
+      processingNote = `\n\nNOTA: Esta transcrição foi muito longa (${transcript.length} caracteres) e foi processada em seções para garantir qualidade.`;
+      
+      console.log('📝 [GENERATE-PRONTUARIO] Chunking applied:', {
+        originalLength: transcript.length,
+        processedLength: finalTranscript.length,
+        hasMiddleChunk: !!middleChunk,
+        reductionPercentage: Math.round((1 - finalTranscript.length / transcript.length) * 100)
+      });
+    }
+
+    // Update the user prompt with the processed transcript
+    const finalUserPrompt = `${aiPromptTemplate}
+
+TRANSCRIÇÃO DA CONSULTA:
+"""
+${finalTranscript}
+"""${processingNote}
+
+Por favor, organize esta transcrição em um prontuário estruturado conforme as instruções do template.`;
+
     const requestPayload = {
       model: 'gpt-4o',
       messages: [
@@ -227,35 +304,58 @@ Por favor, organize esta transcrição em um prontuário estruturado conforme as
         },
         {
           role: 'user', 
-          content: userPrompt
+          content: finalUserPrompt
         }
       ],
       temperature: 0.3,
-      max_completion_tokens: 2000,
+      max_completion_tokens: 4000, // Increased for long consultations
       top_p: 1,
       frequency_penalty: 0,
       presence_penalty: 0
     };
 
+    // Estimate token count (rough approximation: 1 token ≈ 4 characters)
+    const totalCharacters = systemPrompt.length + finalUserPrompt.length;
+    const estimatedInputTokens = Math.ceil(totalCharacters / 4);
+    const estimatedTotalTokens = estimatedInputTokens + requestPayload.max_completion_tokens;
+
     console.log('🤖 [GENERATE-PRONTUARIO] Sending request to OpenAI...');
     console.log('  - Model: gpt-4o');
     console.log('  - System prompt length:', systemPrompt.length);
-    console.log('  - User prompt length:', userPrompt.length);
+    console.log('  - User prompt length:', finalUserPrompt.length);
+    console.log('  - Original transcript length:', transcript.length);
+    console.log('  - Processed transcript length:', finalTranscript.length);
     console.log('  - Temperature:', requestPayload.temperature);
     console.log('  - Max completion tokens:', requestPayload.max_completion_tokens);
-    console.log('  - Total characters to process:', systemPrompt.length + userPrompt.length);
+    console.log('  - Total characters to process:', totalCharacters);
+    console.log('  - Estimated input tokens:', estimatedInputTokens);
+    console.log('  - Estimated total tokens (input + output):', estimatedTotalTokens);
+
+    // Log warning for very large requests
+    if (estimatedInputTokens > 100000) {
+      console.warn('⚠️ [GENERATE-PRONTUARIO] Very large input token count - may hit context limits');
+    }
 
     const startTime = Date.now();
 
-    // Send request to OpenAI
+    // Send request to OpenAI with timeout handling
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn('⏰ [GENERATE-PRONTUARIO] OpenAI request timeout after 5 minutes');
+      abortController.abort();
+    }, 5 * 60 * 1000); // 5 minute timeout
+
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${openaiApiKey}`
       },
-      body: JSON.stringify(requestPayload)
+      body: JSON.stringify(requestPayload),
+      signal: abortController.signal
     });
+
+    clearTimeout(timeoutId);
 
     const processingTime = Date.now() - startTime;
 
@@ -319,6 +419,18 @@ Por favor, organize esta transcrição em um prontuário estruturado conforme as
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined
     });
+
+    // Handle timeout errors specifically
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error('⏰ [GENERATE-PRONTUARIO] Request was aborted due to timeout');
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Request timeout - the transcript may be too long for processing. Please try with a shorter recording or contact support.' 
+        },
+        { status: 408 } // Request Timeout
+      );
+    }
 
     return NextResponse.json(
       { 

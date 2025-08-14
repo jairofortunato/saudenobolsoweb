@@ -89,11 +89,20 @@ export function TranscriptionDisplay({
         <textarea
           value={transcriptionResult.transcript}
           readOnly
-          className="w-full h-32 p-4 border border-gray-200 rounded-lg text-sm font-mono resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 leading-relaxed bg-gray-50"
+          className={`w-full p-4 border border-gray-200 rounded-lg text-sm font-mono resize-y focus:ring-1 focus:ring-blue-500 focus:border-blue-500 leading-relaxed bg-gray-50 ${
+            transcriptionResult.transcript.length > 5000 ? 'h-48' : 'h-32'
+          }`}
           placeholder="Transcrição aparecerá aqui..."
         />
         
-        
+        {/* Show length indicator for very long transcripts */}
+        {transcriptionResult.transcript.length > 10000 && (
+          <div className="absolute bottom-2 right-2">
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+              Transcrição longa: {Math.round(transcriptionResult.transcript.length / 1000)}k chars
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
