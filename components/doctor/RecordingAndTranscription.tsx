@@ -2,7 +2,8 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { 
-  Button
+  Button,
+  AnimatedAlert
 } from '../index';
 import { AudioVisualizer } from '../prontodoc/AudioVisualizer';
 import { ProntuarioModal } from '../prontodoc/ProntuarioModal';
@@ -72,6 +73,7 @@ export function RecordingAndTranscription({
   const [prontuarioText, setProntuarioText] = useState('');
   const [isEditingProntuario, setIsEditingProntuario] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showRecordingCompleteAlert, setShowRecordingCompleteAlert] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -101,6 +103,7 @@ export function RecordingAndTranscription({
       setIsTranscribing(false);
       setIsGeneratingProntuario(false);
       setIsModalOpen(false);
+      setShowRecordingCompleteAlert(false);
       
       // Clear parent component's prontuario state as well
       if (onClearProntuario) {
@@ -166,6 +169,9 @@ export function RecordingAndTranscription({
     }
     
     setIsRecording(false);
+    
+    // Show the "Pronto doctor!" alert after recording stops
+    setShowRecordingCompleteAlert(true);
   }, [isRecording, audioStream, recordingTime]);
 
   const handleTranscribeAudio = useCallback(async (audioBlob: Blob) => {
@@ -279,6 +285,7 @@ export function RecordingAndTranscription({
     setError(null);
     setRecordingTime(0);
     setIsModalOpen(false);
+    setShowRecordingCompleteAlert(false);
   }, []);
 
   const handleSaveProntuario = useCallback(async () => {
@@ -339,6 +346,10 @@ export function RecordingAndTranscription({
     }
   }, [prontuarioText, error]);
 
+  const handleHideAlert = useCallback(() => {
+    setShowRecordingCompleteAlert(false);
+  }, []);
+
   useEffect(() => {
     if (recordedBlob && !isRecording) {
       handleTranscribeAudio(recordedBlob);
@@ -358,6 +369,15 @@ export function RecordingAndTranscription({
 
   return (
     <div className={`space-y-6 ${className}`}>
+      {/* Recording Complete Alert */}
+      <AnimatedAlert
+        isVisible={showRecordingCompleteAlert}
+        message={`Pronto doctor ${selectedPatient?.name || 'Doutor'}!`}
+        type="success"
+        duration={4000}
+        onHide={handleHideAlert}
+      />
+
       {error && (
         <div className="text-center text-sm text-red-600">{error}</div>
       )}

@@ -2,6 +2,21 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 
+// TypeScript declarations for Wake Lock API
+declare global {
+  interface Navigator {
+    wakeLock?: {
+      request(type: 'screen'): Promise<WakeLockSentinel>;
+    };
+  }
+  
+  interface WakeLockSentinel {
+    release(): Promise<void>;
+    addEventListener(type: 'release', listener: () => void): void;
+    removeEventListener(type: 'release', listener: () => void): void;
+  }
+}
+
 interface AudioVisualizerProps {
   audioStream: MediaStream | null;
   isRecording: boolean;
@@ -19,7 +34,108 @@ export function AudioVisualizer({
 }: AudioVisualizerProps) {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const dataArrayRef = useRef<Uint8Array | null>(null);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const [levelsHalf, setLevelsHalf] = useState<number[]>(Array.from({ length: 16 }, () => 0));
+
+  // Wake Lock API functions
+  const requestWakeLock = useCallback(async () => {
+    if ('wakeLock' in navigator) {
+      try {
+        wakeLockRef.current = await navigator.wakeLock.request('screen');
+        console.log('Wake lock acquired to prevent screen timeout during recording');
+        
+        wakeLockRef.current.addEventListener('release', () => {
+          console.log('Wake lock was released');
+        });
+      } catch (err) {
+        console.error('Failed to acquire wake lock:', err);
+        // Fallback: try to prevent sleep with audio context
+        keepAudioContextActive();
+      }
+    } else {
+      // Fallback for browsers without Wake Lock API
+      keepAudioContextActive();
+      console.log('Wake Lock API not supported, using audio context fallback');
+    }
+  }, []);
+
+  // Fallback method: Keep audio context active
+  const keepAudioContextActive = useCallback(() => {
+    // Note: This fallback should be called after the audio context is created
+    // We'll delay this to ensure the analyser is ready
+    setTimeout(() => {
+      if (analyserRef.current?.context) {
+        const audioContext = analyserRef.current.context;
+        
+        try {
+          // Create a silent oscillator to keep audio context running
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          gainNode.gain.setValueAtTime(0, audioContext.currentTime); // Silent
+          
+          oscillator.frequency.setValueAtTime(20, audioContext.currentTime); // Very low frequency
+          oscillator.start();
+          
+          // Store reference to clean up later
+          (wakeLockRef.current as any) = { oscillator, gainNode, type: 'fallback' };
+        } catch (err) {
+          console.error('Failed to create audio fallback:', err);
+        }
+      }
+    }, 100); // Small delay to ensure audio context is ready
+  }, []);
+
+  const releaseWakeLock = useCallback(() => {
+    if (wakeLockRef.current) {
+      if ((wakeLockRef.current as any).type === 'fallback') {
+        // Clean up fallback oscillator
+        const fallback = wakeLockRef.current as any;
+        try {
+          fallback.oscillator.stop();
+          fallback.oscillator.disconnect();
+          fallback.gainNode.disconnect();
+        } catch (err) {
+          console.error('Error cleaning up audio fallback:', err);
+        }
+      } else if ('release' in wakeLockRef.current) {
+        // Release actual wake lock
+        wakeLockRef.current.release();
+      }
+      wakeLockRef.current = null;
+      console.log('Wake lock released');
+    }
+  }, []);
+
+  // Manage wake lock based on recording state
+  useEffect(() => {
+    if (isRecording) {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+
+    // Cleanup on unmount or when recording state changes
+    return () => {
+      releaseWakeLock();
+    };
+  }, [isRecording, requestWakeLock, releaseWakeLock]);
+
+  // Re-acquire wake lock when page becomes visible (handles browser minimization)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isRecording && !wakeLockRef.current) {
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isRecording, requestWakeLock]);
 
   // Init analyser
   useEffect(() => {

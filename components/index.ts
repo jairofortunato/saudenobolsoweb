@@ -1,5 +1,6 @@
 // Re-export all components
 export * from './ui/Alert';
+export * from './ui/AnimatedAlert';
 export * from './ui/BadgeToggleCard';
 export * from './ui/Button';
 export * from './ui/Card';
