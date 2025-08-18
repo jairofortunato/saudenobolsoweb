@@ -9,6 +9,8 @@ import { AudioVisualizer } from '../prontodoc/AudioVisualizer';
 import { ProntuarioModal } from '../prontodoc/ProntuarioModal';
 import { TranscriptionDisplay } from '../prontodoc/TranscriptionDisplay';
 import { useErrorHandler } from '../ErrorBoundary';
+import { ChunkedRecordingManager } from './ChunkedRecordingManager';
+import { SessionStateManager } from './SessionStateManager';
 
 interface PatientProfile {
   id: string;
@@ -76,39 +78,29 @@ export function RecordingAndTranscription({
   const [isEditingProntuario, setIsEditingProntuario] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showRecordingCompleteAlert, setShowRecordingCompleteAlert] = useState(false);
+  
+  // Chunked recording state (now default mode)
+  const [currentSession, setCurrentSession] = useState(null);
+  const [chunkedRecordingChunks, setChunkedRecordingChunks] = useState([]);
+  const [isGeneratingFinalProntuario, setIsGeneratingFinalProntuario] = useState(false);
+  const [isChunkedRecordingActive, setIsChunkedRecordingActive] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const handleError = useErrorHandler();
+  
+  // Refs for chunked recording components
+  const sessionManagerRef = useRef(null);
+  const chunkedRecordingRef = useRef(null);
 
   const handleStartRecording = useCallback(async () => {
-    console.log('🎙️ [RECORDING] Starting recording process');
-    console.log('🎙️ [RECORDING] Current state:', {
-      isRecording,
-      hasExistingProntuario: !!prontuarioText,
-      hasExistingTranscription: !!transcriptionResult,
-      selectedPatient: selectedPatient?.name || 'None',
-      selectedTemplate: selectedTemplate?.name || 'None'
-    });
-
-    // For testing mode, we'll skip patient validation
-    // if (!selectedPatient) {
-    //   setError('Selecione um paciente.');
-    //   return;
-    // }
-
-    // For testing mode, we'll skip template validation
-    // if (!selectedTemplate) {
-    //   setError('Selecione um template.');
-    //   return;
-    // }
-
+    console.log('🎙️ [RECORDING] Starting recording process with chunked recording backend');
+    
     try {
       setError(null);
       
-      console.log('🧹 [RECORDING] Clearing all previous state');
-      // Clear ALL previous state when starting new recording
+      // Clear ALL previous state
       setProntuarioText('');
       setIsEditingProntuario(false);
       setTranscriptionResult(null);
@@ -117,131 +109,68 @@ export function RecordingAndTranscription({
       setIsGeneratingProntuario(false);
       setIsModalOpen(false);
       setShowRecordingCompleteAlert(false);
+      setChunkedRecordingChunks([]);
       
-      // Clear parent component's prontuario state as well
       if (onClearProntuario) {
-        console.log('🧹 [RECORDING] Clearing parent component state');
         onClearProntuario();
       }
       
-      console.log('🎤 [RECORDING] Requesting microphone access');
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 44100
-        } 
-      });
+      // Start chunked recording session first
+      if ((window as any).sessionManager) {
+        console.log('📊 [RECORDING] Starting session manager...');
+        (window as any).sessionManager.startSession();
+      } else {
+        console.warn('⚠️ [RECORDING] Session manager not found on window');
+      }
       
-      console.log('✅ [RECORDING] Microphone access granted');
-      console.log('🎤 [RECORDING] Audio stream info:', {
-        active: stream.active,
-        id: stream.id,
-        tracks: stream.getAudioTracks().length
-      });
+      // Start the chunked recording manager using ref
+      if (chunkedRecordingRef.current && (chunkedRecordingRef.current as any).startRecording) {
+        console.log('🎤 [RECORDING] Starting chunked recording manager...');
+        await (chunkedRecordingRef.current as any).startRecording();
+      } else {
+        console.warn('⚠️ [RECORDING] Chunked recording ref not available');
+      }
       
-      setAudioStream(stream);
-      
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
-      
-      console.log('📹 [RECORDING] MediaRecorder created:', {
-        mimeType: mediaRecorder.mimeType,
-        state: mediaRecorder.state
-      });
-      
-      audioChunksRef.current = [];
-      
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          console.log('📊 [RECORDING] Data chunk received:', {
-            size: event.data.size,
-            type: event.data.type,
-            totalChunks: audioChunksRef.current.length + 1
-          });
-          audioChunksRef.current.push(event.data);
-        }
-      };
-      
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        console.log('🛑 [RECORDING] Recording stopped, blob created:', {
-          size: audioBlob.size,
-          type: audioBlob.type,
-          totalChunks: audioChunksRef.current.length
-        });
-        setRecordedBlob(audioBlob);
-      };
-      
-      mediaRecorder.start(1000);
-      mediaRecorderRef.current = mediaRecorder;
-      
-      console.log('▶️ [RECORDING] Recording started');
       setIsRecording(true);
       setRecordingTime(0);
       
+      // Start timer for UI
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
       
+      console.log('✅ [RECORDING] Recording started successfully');
+      
     } catch (error) {
       const errorObj = error instanceof Error ? error : new Error(String(error));
-      console.error('❌ [RECORDING] Error starting recording:', {
-        name: errorObj.name,
-        message: errorObj.message
-      });
+      console.error('❌ [RECORDING] Error starting recording:', error);
       handleError(errorObj, 'Recording start failed');
       setError('Erro ao acessar o microfone. Verifique as permissões.');
     }
-  }, [selectedPatient, selectedTemplate, handleError]);
+  }, [selectedPatient, selectedTemplate, handleError, onClearProntuario]);
 
   const handleStopRecording = useCallback(() => {
     console.log('⏹️ [RECORDING] Stopping recording process');
-    console.log('⏹️ [RECORDING] Current state:', {
-      isRecording,
-      recordingTime,
-      hasMediaRecorder: !!mediaRecorderRef.current,
-      hasAudioStream: !!audioStream,
-      audioChunksCount: audioChunksRef.current.length
-    });
-
-    if (mediaRecorderRef.current && isRecording) {
-      console.log('📹 [RECORDING] Stopping MediaRecorder');
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current = null;
-    }
     
-    if (audioStream) {
-      console.log('🎤 [RECORDING] Stopping audio stream tracks');
-      audioStream.getTracks().forEach(track => {
-        console.log('🛑 [RECORDING] Stopping track:', {
-          kind: track.kind,
-          label: track.label,
-          enabled: track.enabled
-        });
-        track.stop();
-      });
-      setAudioStream(null);
+    // Immediately set loading states for instant UI feedback
+    setIsRecording(false);
+    setIsTranscribing(true);
+    setIsGeneratingFinalProntuario(true);
+    
+    // Stop the chunked recording manager using ref
+    if (chunkedRecordingRef.current && (chunkedRecordingRef.current as any).stopRecording) {
+      (chunkedRecordingRef.current as any).stopRecording();
     }
     
     if (timerRef.current) {
-      console.log('⏰ [RECORDING] Clearing timer');
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
     
-    setIsRecording(false);
-    
     console.log('✅ [RECORDING] Recording stopped successfully');
-    console.log('📊 [RECORDING] Final recording stats:', {
-      duration: recordingTime,
-      audioChunks: audioChunksRef.current.length
-    });
     
-    // Show the "Pronto doctor!" alert after recording stops
-    setShowRecordingCompleteAlert(true);
-  }, [isRecording, audioStream, recordingTime]);
+    // The chunked recording complete handler will take care of the rest
+  }, []);
 
   const handleTranscribeAudio = useCallback(async (audioBlob: Blob) => {
     console.log('🎤 [TRANSCRIPTION] Starting audio transcription process');
@@ -496,6 +425,9 @@ export function RecordingAndTranscription({
     setRecordingTime(0);
     setIsModalOpen(false);
     setShowRecordingCompleteAlert(false);
+    setChunkedRecordingChunks([]);
+    setCurrentSession(null);
+    setIsChunkedRecordingActive(false);
   }, []);
 
   const handleSaveProntuario = useCallback(async () => {
@@ -562,8 +494,168 @@ export function RecordingAndTranscription({
     }
   }, [prontuarioText, error]);
 
+
   const handleHideAlert = useCallback(() => {
     setShowRecordingCompleteAlert(false);
+  }, []);
+
+  // Listen for audio stream from chunked recording manager
+  useEffect(() => {
+    const handleAudioStream = (event) => {
+      console.log('🎧 [RECORDING] Audio stream event received:', event.detail);
+      const { audioStream: stream, isRecording: recording } = event.detail;
+      setAudioStream(stream);
+      console.log('🎧 [RECORDING] Audio stream set for AudioVisualizer:', !!stream);
+    };
+    
+    window.addEventListener('audio-stream-available', handleAudioStream);
+    
+    return () => {
+      window.removeEventListener('audio-stream-available', handleAudioStream);
+    };
+  }, []);
+
+  // Also get audio stream directly from chunked recording ref
+  useEffect(() => {
+    if (chunkedRecordingRef.current && (chunkedRecordingRef.current as any).audioStream) {
+      const stream = (chunkedRecordingRef.current as any).audioStream;
+      console.log('🎧 [RECORDING] Getting audio stream directly from chunked recording ref:', !!stream);
+      setAudioStream(stream);
+    }
+  }, [isRecording, chunkedRecordingRef.current]);
+
+  // Chunked recording handlers
+  const handleChunkTranscribed = useCallback((chunk) => {
+    console.log('🔄 [CHUNKED] Chunk transcribed:', chunk.chunk_number);
+    console.log('🔄 [CHUNKED] Chunk data:', {
+      chunk_number: chunk.chunk_number,
+      transcript_length: chunk.transcript?.length || 0,
+      confidence: chunk.confidence,
+      status: chunk.processing_status
+    });
+    
+    setChunkedRecordingChunks(prev => {
+      const updated = prev.map(c => c.chunk_number === chunk.chunk_number ? chunk : c);
+      if (!updated.find(c => c.chunk_number === chunk.chunk_number)) {
+        updated.push(chunk);
+      }
+      console.log('📦 [CHUNKED] Updated chunks array, total chunks:', updated.length);
+      return updated;
+    });
+    
+    // Set processing state for UI
+    setIsTranscribing(true);
+    
+    // Update session manager
+    if ((window as any).sessionManager) {
+      (window as any).sessionManager.addChunkToSession(chunk);
+    }
+    
+    // Reset processing state
+    setTimeout(() => setIsTranscribing(false), 1000);
+  }, []);
+  
+  const handleChunkedRecordingComplete = useCallback(async (chunks) => {
+    console.log('🏁 [CHUNKED] Recording complete with', chunks.length, 'chunks');
+    
+    // If no chunks were recorded, show error
+    if (!chunks || chunks.length === 0) {
+      console.error('❌ [CHUNKED] No audio chunks recorded');
+      setError('Nenhum áudio foi gravado. Tente novamente.');
+      
+      // Complete session anyway
+      if ((window as any).sessionManager) {
+        (window as any).sessionManager.completeSession();
+      }
+      return;
+    }
+    
+    setIsGeneratingFinalProntuario(true);
+    
+    try {
+      // For single chunk (short recording), use regular prontuário generation
+      if (chunks.length === 1) {
+        console.log('📝 [SINGLE-CHUNK] Using regular prontuário generation for single chunk');
+        setIsGeneratingProntuario(true);
+        await handleGenerateProntuario(chunks[0].transcript);
+        setIsGeneratingProntuario(false);
+      } else {
+        // For multiple chunks, use final prontuário generation
+        console.log('📚 [MULTI-CHUNK] Using final prontuário generation for', chunks.length, 'chunks');
+        
+        const requestBody = {
+          transcription_chunks: chunks.map(chunk => ({
+            chunk_number: chunk.chunk_number,
+            transcript: chunk.transcript,
+            timestamp: chunk.timestamp,
+            confidence: chunk.confidence
+          })),
+          session_id: currentSession?.session_id || 'unknown',
+          patient_context: {
+            name: selectedPatient?.name,
+            age: null,
+            gender: null
+          },
+          template: selectedTemplate ? {
+            name: selectedTemplate.name,
+            specialty: selectedTemplate.specialty,
+            ai_prompt_template: selectedTemplate.ai_prompt_template
+          } : undefined
+        };
+        
+        console.log('📤 [FINAL-PRONTUARIO] Sending request for final prontuário');
+        const response = await fetch('/api/doctor/generate-final-prontuario', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ [FINAL-PRONTUARIO] Final prontuário generated successfully');
+        
+        setProntuarioText(result.final_prontuario);
+        setIsEditingProntuario(true);
+        onProntuarioGenerated(result.final_prontuario);
+      }
+      
+      // Complete session
+      if ((window as any).sessionManager) {
+        (window as any).sessionManager.completeSession();
+      }
+      
+    } catch (error) {
+      console.error('❌ [FINAL-PRONTUARIO] Error generating final prontuário:', error);
+      setError(`Erro ao gerar prontuário final: ${error.message}`);
+    } finally {
+      setIsGeneratingFinalProntuario(false);
+      setIsTranscribing(false);
+    }
+  }, [currentSession, selectedPatient, selectedTemplate, onProntuarioGenerated, handleGenerateProntuario]);
+  
+  const handleSessionCreated = useCallback((session) => {
+    console.log('📊 [SESSION] Session created:', session.session_id);
+    setCurrentSession(session);
+  }, []);
+  
+  const handleSessionUpdated = useCallback((session) => {
+    setCurrentSession(session);
+  }, []);
+  
+  const handleSessionCompleted = useCallback((session) => {
+    console.log('🏁 [SESSION] Session completed:', session.session_id);
+    setIsChunkedRecordingActive(false);
+    setAudioStream(null);
+    setShowRecordingCompleteAlert(true);
+  }, []);
+  
+  const handleErrorChunked = useCallback((error) => {
+    console.error('❌ [ERROR]', error);
+    setError(error);
   }, []);
 
   useEffect(() => {
@@ -619,16 +711,17 @@ export function RecordingAndTranscription({
         <AudioVisualizer 
           audioStream={audioStream}
           isRecording={isRecording}
-          isProcessing={isTranscribing || isGeneratingProntuario}
+          isProcessing={isTranscribing || isGeneratingProntuario || isGeneratingFinalProntuario}
           onToggleRecording={isRecording ? handleStopRecording : handleStartRecording}
           className="w-full max-w-5xl"
         />
 
-        {(isTranscribing || isGeneratingProntuario) && (
+        {(isTranscribing || isGeneratingProntuario || isGeneratingFinalProntuario) && (
           <div className="flex flex-col items-center space-y-2">
             <div className="text-xs text-blue-700">
               {isTranscribing && 'Transcrevendo áudio... Isso pode levar alguns minutos para gravações longas.'}
               {isGeneratingProntuario && 'Gerando prontuário... Analisando transcrição e estruturando documento médico.'}
+              {isGeneratingFinalProntuario && 'Gerando prontuário final... Combinando todos os segmentos da consulta.'}
             </div>
             {/* Progress bar for long operations */}
             <div className="w-64 bg-gray-200 rounded-full h-1.5">
@@ -637,10 +730,43 @@ export function RecordingAndTranscription({
             <div className="text-xs text-gray-500">
               {isTranscribing && 'Processamento de áudio em andamento...'}
               {isGeneratingProntuario && 'Geração de prontuário em andamento...'}
+              {isGeneratingFinalProntuario && `Processando ${chunkedRecordingChunks.length} segmentos de consulta...`}
             </div>
           </div>
         )}
       </div>
+      
+      {/* Hidden Background Components - Chunked Recording System */}
+      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', visibility: 'hidden' }}>
+        <SessionStateManager
+          patientId={selectedPatient?.id || 'test-patient-001'}
+          doctorId="temp_doctor_id"
+          patientContext={{
+            name: selectedPatient?.name,
+            age: undefined,
+            gender: undefined
+          }}
+          templateInfo={selectedTemplate ? {
+            name: selectedTemplate.name,
+            specialty: selectedTemplate.specialty
+          } : undefined}
+          onSessionCreated={handleSessionCreated}
+          onSessionUpdated={handleSessionUpdated}
+          onSessionCompleted={handleSessionCompleted}
+          onError={handleErrorChunked}
+        />
+        
+        <ChunkedRecordingManager
+          ref={chunkedRecordingRef}
+          sessionId={currentSession?.session_id || 'no-session'}
+          patientId={selectedPatient?.id || 'test-patient-001'}
+          doctorId="temp_doctor_id"
+          onChunkTranscribed={handleChunkTranscribed}
+          onRecordingComplete={handleChunkedRecordingComplete}
+          onError={handleErrorChunked}
+        />
+      </div>
+      
 
       {prontuarioText && (
         <div className="max-w-4xl mx-auto space-y-3">
@@ -701,6 +827,60 @@ export function RecordingAndTranscription({
           transcriptionResult={transcriptionResult}
           className="max-w-4xl mx-auto mt-8"
         />
+      )}
+      
+      {/* Chunked Transcription Display - Show combined transcription for chunked recordings */}
+      {chunkedRecordingChunks.length > 0 && !isRecording && prontuarioText && (
+        <div className="max-w-4xl mx-auto mt-8">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Transcrição da Consulta
+            </h3>
+            
+            {/* Combined transcription from all chunks */}
+            <div className="bg-gray-50 border rounded-lg p-4 max-h-64 overflow-y-auto">
+              <div className="text-sm text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">
+                {chunkedRecordingChunks
+                  .sort((a, b) => a.chunk_number - b.chunk_number)
+                  .map(chunk => chunk.transcript)
+                  .join(' ')
+                }
+              </div>
+            </div>
+            
+            {/* Transcription metadata */}
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="flex flex-col">
+                <span className="text-gray-500">Segmentos</span>
+                <span className="font-medium text-gray-900">{chunkedRecordingChunks.length}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-gray-500">Palavras</span>
+                <span className="font-medium text-gray-900">
+                  {chunkedRecordingChunks
+                    .reduce((total, chunk) => total + (chunk.transcript?.split(' ').length || 0), 0)
+                  }
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-gray-500">Confiança Média</span>
+                <span className="font-medium text-gray-900">
+                  {chunkedRecordingChunks.length > 0 
+                    ? ((chunkedRecordingChunks.reduce((sum, chunk) => sum + (chunk.confidence || 0), 0) / chunkedRecordingChunks.length) * 100).toFixed(1)
+                    : 0
+                  }%
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-gray-500">Processamento</span>
+                <span className="font-medium text-green-600">Segmentado</span>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       <ProntuarioModal
