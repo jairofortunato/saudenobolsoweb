@@ -78,6 +78,7 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
   const [chunks, setChunks] = useState<ChunkedRecordingChunk[]>([]);
   const [isProcessingChunk, setIsProcessingChunk] = useState(false);
   const [currentChunkSize, setCurrentChunkSize] = useState(0);
+  const [activeTimers, setActiveTimers] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -85,6 +86,8 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const totalTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingCompletionRef = useRef(false);
+  const currentChunkRef = useRef(0);
+  const isRecordingRef = useRef(false);
 
   // Only log on significant state changes
   const prevRecordingRef = useRef(isRecording);
@@ -103,6 +106,9 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
       prevRecordingRef.current = isRecording;
       prevChunkRef.current = currentChunk;
     }
+    // Update refs for timer access
+    currentChunkRef.current = currentChunk;
+    isRecordingRef.current = isRecording;
   }, [isRecording, currentChunk, totalRecordingTime, currentChunkTime, chunks.length, sessionId]);
 
   // Start new MediaRecorder for current chunk
@@ -178,7 +184,7 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
               mediaRecorderRef.current.stop();
               // Set a flag to auto-restart after processing
               setTimeout(async () => {
-                if (isRecording) {
+                if (isRecordingRef.current) {
                   console.log('🔄 [CHUNKED-RECORDING] Auto-switching to next chunk after size split');
                   await switchToNextChunk();
                 }
@@ -534,10 +540,20 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
       }, 1000);
 
       // Set up automatic chunk switching (only if recording continues for 2+ minutes)
+      console.log('⏰ [CHUNKED-RECORDING] Setting up first chunk timer for', CHUNK_DURATION_MS / 1000, 'seconds');
+      setActiveTimers(1);
       recordingTimerRef.current = setTimeout(async () => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        console.log('⏰ [CHUNKED-RECORDING] First chunk timer triggered! Checking recording state...');
+        console.log('📊 [CHUNKED-RECORDING] MediaRecorder state:', mediaRecorderRef.current?.state);
+        console.log('📊 [CHUNKED-RECORDING] Is recording ref:', isRecordingRef.current);
+        
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording' && isRecordingRef.current) {
           console.log('⏰ [CHUNKED-RECORDING] 2-minute chunk completed, switching to next chunk for long consultation');
+          setActiveTimers(prev => prev - 1); // This timer is firing, so decrease count
           await switchToNextChunk();
+        } else {
+          console.log('⚠️ [CHUNKED-RECORDING] Timer triggered but recording not active');
+          setActiveTimers(prev => prev - 1); // Timer fired but didn't act
         }
       }, CHUNK_DURATION_MS);
 
@@ -552,7 +568,7 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
 
   // Switch to next chunk seamlessly
   const switchToNextChunk = useCallback(async () => {
-    console.log('🔄 [CHUNKED-RECORDING] Switching to next chunk');
+    console.log('🔄 [CHUNKED-RECORDING] Switching to next chunk from', currentChunkRef.current);
 
     try {
       // Stop current MediaRecorder (this will trigger processCurrentChunk)
@@ -564,9 +580,13 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Increment chunk number and reset chunk timer and size
-      setCurrentChunk(prev => prev + 1);
+      const nextChunkNumber = currentChunkRef.current + 1;
+      console.log('📊 [CHUNKED-RECORDING] Moving from chunk', currentChunkRef.current, 'to chunk', nextChunkNumber);
+      
+      setCurrentChunk(nextChunkNumber);
       setCurrentChunkTime(0);
       setCurrentChunkSize(0);
+      currentChunkRef.current = nextChunkNumber;
 
       // Start new MediaRecorder for next chunk
       const recorderStarted = await startMediaRecorder();
@@ -576,24 +596,35 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
 
       // Set up next automatic chunk switch
       if (recordingTimerRef.current) {
+        console.log('🧹 [CHUNKED-RECORDING] Clearing previous timer before setting new one');
         clearTimeout(recordingTimerRef.current);
       }
 
+      console.log('⏰ [CHUNKED-RECORDING] Setting up next chunk timer for', CHUNK_DURATION_MS / 1000, 'seconds');
+      setActiveTimers(prev => prev + 1);
       recordingTimerRef.current = setTimeout(async () => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        console.log('⏰ [CHUNKED-RECORDING] Subsequent chunk timer triggered! Checking recording state...');
+        console.log('📊 [CHUNKED-RECORDING] MediaRecorder state:', mediaRecorderRef.current?.state);
+        console.log('📊 [CHUNKED-RECORDING] Is recording ref:', isRecordingRef.current);
+        
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording' && isRecordingRef.current) {
           console.log('⏰ [CHUNKED-RECORDING] Next 2-minute chunk completed, switching again');
+          setActiveTimers(prev => prev - 1); // This timer is firing, so decrease count
           await switchToNextChunk();
+        } else {
+          console.log('⚠️ [CHUNKED-RECORDING] Timer triggered but recording not active');
+          setActiveTimers(prev => prev - 1); // Timer fired but didn't act
         }
       }, CHUNK_DURATION_MS);
 
-      console.log('✅ [CHUNKED-RECORDING] Successfully switched to chunk', currentChunk + 1);
+      console.log('✅ [CHUNKED-RECORDING] Successfully switched to chunk', nextChunkNumber);
 
     } catch (error) {
       console.error('❌ [CHUNKED-RECORDING] Failed to switch to next chunk:', error);
       onError(`Failed to switch to next chunk: ${error instanceof Error ? error.message : 'Unknown error'}`);
       stopChunkedRecording();
     }
-  }, [startMediaRecorder, currentChunk, onError]);
+  }, [startMediaRecorder, onError]);
 
   // Stop chunked recording
   const stopChunkedRecording = useCallback(async () => {
@@ -616,6 +647,7 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
       if (recordingTimerRef.current) {
         clearTimeout(recordingTimerRef.current);
         recordingTimerRef.current = null;
+        setActiveTimers(0);
       }
 
       // Stop MediaRecorder (this will trigger processCurrentChunk via onstop)
@@ -774,6 +806,8 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
                   Próximo segmento em: {formatTime(Math.max(0, 120 - currentChunkTime))}
                   <br />
                   Tamanho atual: {Math.round(currentChunkSize / 1024 / 1024 * 100) / 100} MB / 4 MB max
+                  <br />
+                  Timers ativos: {activeTimers}
                 </div>
               )}
             </div>
