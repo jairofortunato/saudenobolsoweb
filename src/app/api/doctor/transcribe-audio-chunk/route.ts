@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Prepare form data for AI processor with chunk metadata
-    const aiProcessorFormData = new FormData();
+    let aiProcessorFormData = new FormData();
     aiProcessorFormData.append('audio_file', audioFile);
     aiProcessorFormData.append('session_id', sessionId);
     aiProcessorFormData.append('chunk_number', chunkNumber.toString());
@@ -115,7 +115,14 @@ export async function POST(request: NextRequest) {
     // Get AI processor URL from environment
     const aiProcessorUrl = process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 
                           process.env.NEXT_PUBLIC_API_BASE_URL || 
-                          'http://localhost:8000';
+                          process.env.AI_PROCESSOR_URL ||
+                          'https://saude-ai-processor-production-bebd.up.railway.app';
+    
+    console.log('🌐 [TRANSCRIBE-AUDIO-CHUNK] Environment variables check:');
+    console.log('  - NEXT_PUBLIC_AI_PROCESSOR_URL:', process.env.NEXT_PUBLIC_AI_PROCESSOR_URL || 'Not set');
+    console.log('  - NEXT_PUBLIC_API_BASE_URL:', process.env.NEXT_PUBLIC_API_BASE_URL || 'Not set');
+    console.log('  - AI_PROCESSOR_URL:', process.env.AI_PROCESSOR_URL || 'Not set');
+    console.log('  - Final aiProcessorUrl:', aiProcessorUrl);
     
     // Use regular transcription endpoint for now (chunked endpoint not implemented yet)
     const transcriptionUrl = `${aiProcessorUrl.replace(/\/$/, '')}/api/prontodoc/prerecorded/transcribe-openai-whisper`;
@@ -127,12 +134,65 @@ export async function POST(request: NextRequest) {
     console.log('📤 [TRANSCRIBE-AUDIO-CHUNK] Forwarding chunk to AI processor...');
     const startRequestTime = Date.now();
     
-    // Forward request to AI processor with extended timeout for 4-minute chunks
-    const response = await fetch(transcriptionUrl, {
-      method: 'POST',
-      body: aiProcessorFormData,
-      signal: AbortSignal.timeout(300000) // 5 minute timeout for 4-minute chunks
-    });
+    // Add file format if provided
+    const fileFormat = formData.get('file_format') as string;
+    if (fileFormat) {
+      aiProcessorFormData.append('file_format', fileFormat);
+      console.log('  - file_format:', fileFormat);
+    }
+    
+    let response;
+    let retryCount = 0;
+    const maxRetries = 2;
+    
+    // Retry logic for chunked requests
+    while (retryCount <= maxRetries) {
+      try {
+        console.log(`📤 [TRANSCRIBE-AUDIO-CHUNK] Attempt ${retryCount + 1}/${maxRetries + 1} for chunk ${chunkNumber}`);
+        
+        // Create AbortController for manual timeout control
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => abortController.abort(), 300000); // 5 minute timeout
+        
+        response = await fetch(transcriptionUrl, {
+          method: 'POST',
+          body: aiProcessorFormData,
+          signal: abortController.signal,
+          headers: {
+            'User-Agent': 'SaudeNoBolso-ChunkedRecording/1.0'
+          }
+        });
+        
+        clearTimeout(timeoutId);
+        break; // Success, exit retry loop
+        
+      } catch (error) {
+        retryCount++;
+        console.error(`❌ [TRANSCRIBE-AUDIO-CHUNK] Attempt ${retryCount} failed for chunk ${chunkNumber}:`, error);
+        
+        if (retryCount > maxRetries) {
+          throw new Error(`Failed after ${maxRetries + 1} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+        
+        // Wait before retry (exponential backoff)
+        const waitTime = Math.pow(2, retryCount) * 1000; // 2s, 4s, 8s...
+        console.log(`⏳ [TRANSCRIBE-AUDIO-CHUNK] Waiting ${waitTime}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        
+        // Recreate FormData for retry (it gets consumed)
+        const retryFormData = new FormData();
+        retryFormData.append('audio_file', audioFile);
+        retryFormData.append('session_id', sessionId);
+        retryFormData.append('chunk_number', chunkNumber.toString());
+        retryFormData.append('is_final_chunk', isFinalChunk.toString());
+        retryFormData.append('patient_id', patientId);
+        retryFormData.append('doctor_id', doctorId);
+        retryFormData.append('language', language);
+        retryFormData.append('model', model);
+        if (fileFormat) retryFormData.append('file_format', fileFormat);
+        aiProcessorFormData = retryFormData;
+      }
+    }
 
     const requestDuration = Date.now() - startRequestTime;
 

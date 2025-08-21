@@ -44,7 +44,7 @@ ProntoDoc is a medical consultation recording and transcription system that allo
 
 ```
 /api/doctor/
-├── transcribe-audio/          # Audio transcription using OpenAI Whisper
+├── transcribe-audio/          # Audio transcription api endpont proxy/forwarder to the python processing deployed on railway using OpenAI Whisper
 ├── generate-prontuario/       # AI-powered medical record generation
 ├── save-prontuario/          # Save generated records to database
 ├── consultation-templates/    # Template management

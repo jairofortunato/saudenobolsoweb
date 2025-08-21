@@ -84,6 +84,7 @@ export function RecordingAndTranscription({
   const [chunkedRecordingChunks, setChunkedRecordingChunks] = useState([]);
   const [isGeneratingFinalProntuario, setIsGeneratingFinalProntuario] = useState(false);
   const [isChunkedRecordingActive, setIsChunkedRecordingActive] = useState(false);
+  const [finalRecordingTime, setFinalRecordingTime] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -110,6 +111,7 @@ export function RecordingAndTranscription({
       setIsModalOpen(false);
       setShowRecordingCompleteAlert(false);
       setChunkedRecordingChunks([]);
+      setFinalRecordingTime(0);
       
       if (onClearProntuario) {
         onClearProntuario();
@@ -152,6 +154,9 @@ export function RecordingAndTranscription({
   const handleStopRecording = useCallback(() => {
     console.log('⏹️ [RECORDING] Stopping recording process');
     
+    // Save the final recording time before stopping
+    setFinalRecordingTime(recordingTime);
+    
     // Immediately set loading states for instant UI feedback
     setIsRecording(false);
     setIsTranscribing(true);
@@ -170,7 +175,7 @@ export function RecordingAndTranscription({
     console.log('✅ [RECORDING] Recording stopped successfully');
     
     // The chunked recording complete handler will take care of the rest
-  }, []);
+  }, [recordingTime]);
 
   const handleTranscribeAudio = useCallback(async (audioBlob: Blob) => {
     console.log('🎤 [TRANSCRIPTION] Starting audio transcription process');
@@ -185,6 +190,19 @@ export function RecordingAndTranscription({
       return;
     }
 
+    // Validate audio blob size and format
+    if (audioBlob.size === 0) {
+      console.error('❌ [TRANSCRIPTION] Audio blob is empty');
+      setError('Áudio gravado está vazio. Tente gravar novamente.');
+      return;
+    }
+
+    if (audioBlob.size > 25 * 1024 * 1024) { // 25MB limit
+      console.error('❌ [TRANSCRIPTION] Audio blob too large:', audioBlob.size);
+      setError('Áudio muito grande. Tente gravar em segmentos menores.');
+      return;
+    }
+
     setIsTranscribing(true);
     setError(null);
 
@@ -192,13 +210,40 @@ export function RecordingAndTranscription({
       const sessionId = `recording_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       console.log('📋 [TRANSCRIPTION] Generated session ID:', sessionId);
       
+      // Determine proper file extension based on MIME type
+      let fileExtension = 'webm';
+      let fileName = 'recording.webm';
+      
+      if (audioBlob.type) {
+        if (audioBlob.type.includes('mp4')) {
+          fileExtension = 'mp4';
+          fileName = 'recording.mp4';
+        } else if (audioBlob.type.includes('wav')) {
+          fileExtension = 'wav';
+          fileName = 'recording.wav';
+        } else if (audioBlob.type.includes('mp3')) {
+          fileExtension = 'mp3';
+          fileName = 'recording.mp3';
+        } else if (audioBlob.type.includes('ogg')) {
+          fileExtension = 'ogg';
+          fileName = 'recording.ogg';
+        }
+      }
+      
+      console.log('📁 [TRANSCRIPTION] Audio file details:', {
+        mimeType: audioBlob.type,
+        fileName: fileName,
+        extension: fileExtension
+      });
+
       const formData = new FormData();
-      formData.append('audio_file', audioBlob, 'recording.webm');
+      formData.append('audio_file', audioBlob, fileName);
       formData.append('session_id', sessionId);
       formData.append('patient_id', selectedPatient?.id || 'test-patient-001');
       formData.append('doctor_id', 'temp_doctor_id');
       formData.append('language', 'pt');
       formData.append('model', 'whisper-1');
+      formData.append('file_format', fileExtension);
 
       console.log('📤 [TRANSCRIPTION] FormData prepared with fields:', {
         audio_file_size: audioBlob.size,
@@ -242,7 +287,17 @@ export function RecordingAndTranscription({
           statusText: response.statusText,
           errorText: errorText
         });
-        throw new Error(`Transcription failed: ${response.status} ${errorText}`);
+        
+        // Handle specific error patterns
+        if (errorText.includes('string did not match the expected pattern')) {
+          throw new Error('Formato de áudio não suportado. Tente usar um navegador diferente ou gravar novamente.');
+        } else if (response.status === 413) {
+          throw new Error('Arquivo de áudio muito grande. Tente gravar em segmentos menores.');
+        } else if (response.status === 422) {
+          throw new Error('Formato de áudio inválido. Tente gravar novamente.');
+        } else {
+          throw new Error(`Transcription failed: ${response.status} ${errorText}`);
+        }
       }
 
       const result: TranscriptionResult = await response.json();
@@ -428,6 +483,7 @@ export function RecordingAndTranscription({
     setChunkedRecordingChunks([]);
     setCurrentSession(null);
     setIsChunkedRecordingActive(false);
+    setFinalRecordingTime(0);
   }, []);
 
   const handleSaveProntuario = useCallback(async () => {
@@ -701,10 +757,19 @@ export function RecordingAndTranscription({
       )}
 
       <div className="flex flex-col items-center gap-3">
-        {isRecording && (
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-            <span className="font-mono text-sm text-gray-900">{formatTime(recordingTime)}</span>
+        {/* Always show timer when recording or after recording is finished */}
+        {(isRecording || finalRecordingTime > 0) && (
+          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-4 py-2 shadow-sm">
+            {isRecording && <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
+            {!isRecording && finalRecordingTime > 0 && (
+              <span className="w-2 h-2 bg-gray-400 rounded-full" />
+            )}
+            <span className="font-mono text-lg font-semibold text-gray-900">
+              {isRecording ? formatTime(recordingTime) : formatTime(finalRecordingTime)}
+            </span>
+            <span className="text-xs text-gray-500 ml-2">
+              {isRecording ? 'Gravando...' : 'Duração da gravação'}
+            </span>
           </div>
         )}
 

@@ -46,7 +46,7 @@ interface ChunkedRecordingManagerProps {
   className?: string;
 }
 
-const CHUNK_DURATION_MS = 4 * 60 * 1000; // 4 minutes in milliseconds
+const CHUNK_DURATION_MS = 4 * 60 * 1000; // 4 minutes in milliseconds for production
 
 export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerProps>(({
   sessionId,
@@ -113,10 +113,33 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
       // Clear previous audio chunks
       audioChunksRef.current = [];
 
-      // Create new MediaRecorder
-      const mediaRecorder = new MediaRecorder(currentStream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
+      // Create new MediaRecorder with format fallback
+      let mediaRecorder: MediaRecorder;
+      const supportedTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/wav'
+      ];
+      
+      let selectedType = 'audio/webm';
+      for (const type of supportedTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          selectedType = type;
+          break;
+        }
+      }
+      
+      console.log('🎤 [CHUNKED-RECORDING] Using MIME type:', selectedType);
+      
+      try {
+        mediaRecorder = new MediaRecorder(currentStream, {
+          mimeType: selectedType
+        });
+      } catch (error) {
+        console.warn('⚠️ [CHUNKED-RECORDING] Fallback to default MediaRecorder');
+        mediaRecorder = new MediaRecorder(currentStream);
+      }
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -201,9 +224,35 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
           : c
       ));
 
+      // Determine proper file extension based on MIME type
+      let fileExtension = 'webm';
+      if (chunk.audio_blob.type) {
+        if (chunk.audio_blob.type.includes('mp4')) {
+          fileExtension = 'mp4';
+        } else if (chunk.audio_blob.type.includes('wav')) {
+          fileExtension = 'wav';
+        } else if (chunk.audio_blob.type.includes('mp3')) {
+          fileExtension = 'mp3';
+        } else if (chunk.audio_blob.type.includes('ogg')) {
+          fileExtension = 'ogg';
+        }
+      }
+      
+      console.log('📁 [CHUNKED-RECORDING] Chunk audio details:', {
+        chunkNumber: chunk.chunk_number,
+        mimeType: chunk.audio_blob.type,
+        size: chunk.audio_blob.size,
+        extension: fileExtension
+      });
+
+      // Validate chunk audio
+      if (chunk.audio_blob.size === 0) {
+        throw new Error(`Chunk ${chunk.chunk_number} is empty`);
+      }
+
       // Prepare form data for chunked transcription API
       const formData = new FormData();
-      formData.append('audio_file', chunk.audio_blob, `chunk-${chunk.chunk_number}.webm`);
+      formData.append('audio_file', chunk.audio_blob, `chunk-${chunk.chunk_number}.${fileExtension}`);
       formData.append('session_id', sessionId);
       formData.append('chunk_number', chunk.chunk_number.toString());
       formData.append('is_final_chunk', 'false'); // Will be updated for final chunk
@@ -211,8 +260,15 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
       formData.append('doctor_id', doctorId);
       formData.append('language', 'pt');
       formData.append('model', 'whisper-1');
+      formData.append('file_format', fileExtension);
 
       console.log('📤 [CHUNKED-RECORDING] Sending chunk to transcription API');
+      console.log('  - Chunk number:', chunk.chunk_number);
+      console.log('  - Session ID:', sessionId);
+      console.log('  - Is final chunk:', chunk.chunk_number === currentChunk - 1 && !isRecording);
+      console.log('  - Audio blob size:', chunk.audio_blob.size);
+      console.log('  - Request URL: /api/doctor/transcribe-audio-chunk');
+      console.log('  - Window location:', window.location.href);
       
       const response = await fetch('/api/doctor/transcribe-audio-chunk', {
         method: 'POST',
@@ -220,8 +276,33 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+        let errorMessage;
+        try {
+          const responseText = await response.text();
+          console.log('❌ [CHUNKED-RECORDING] Error response text:', responseText);
+          
+          // Try to parse as JSON first
+          try {
+            const errorData = JSON.parse(responseText);
+            errorMessage = errorData.error || `HTTP ${response.status}`;
+          } catch {
+            // If not JSON, use the text directly
+            errorMessage = responseText || `HTTP ${response.status}`;
+          }
+        } catch {
+          errorMessage = `HTTP ${response.status}`;
+        }
+        
+        // Handle specific error patterns for chunks
+        if (errorMessage.includes('string did not match the expected pattern')) {
+          throw new Error(`Formato de áudio não suportado no segmento ${chunk.chunk_number}`);
+        } else if (response.status === 413) {
+          throw new Error(`Segmento ${chunk.chunk_number} muito grande`);
+        } else if (response.status === 422) {
+          throw new Error(`Formato inválido no segmento ${chunk.chunk_number}`);
+        } else {
+          throw new Error(errorMessage);
+        }
       }
 
       const result = await response.json();
@@ -270,14 +351,43 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
     } catch (error) {
       console.error('❌ [CHUNKED-RECORDING] Chunk transcription failed:', error);
       
-      // Update chunk status to error
+      // Update chunk status to error but don't fail the whole process
+      const updatedChunkWithError: ChunkedRecordingChunk = {
+        ...chunk,
+        transcript: `[Erro na transcrição do segmento ${chunk.chunk_number}]`,
+        confidence: 0,
+        processing_status: 'error'
+      };
+
       setChunks(prev => prev.map(c => 
-        c.chunk_number === chunk.chunk_number 
-          ? { ...c, processing_status: 'error' }
-          : c
+        c.chunk_number === chunk.chunk_number ? updatedChunkWithError : c
       ));
 
-      onError(`Transcription failed for chunk ${chunk.chunk_number}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Still notify parent but with error chunk
+      onChunkTranscribed(updatedChunkWithError);
+      
+      // Log error but continue with other chunks
+      console.warn(`⚠️ [CHUNKED-RECORDING] Chunk ${chunk.chunk_number} failed, but continuing with other chunks`);
+
+      // If recording has stopped and we're waiting for completion, still trigger it
+      if (pendingCompletionRef.current && !isRecording) {
+        console.log('🏁 [CHUNKED-RECORDING] Triggering completion despite chunk error');
+        pendingCompletionRef.current = false;
+        
+        setChunks(currentChunks => {
+          const finalChunks = currentChunks.map(c => 
+            c.chunk_number === chunk.chunk_number ? updatedChunkWithError : c
+          );
+          
+          if (!finalChunks.find(c => c.chunk_number === chunk.chunk_number)) {
+            finalChunks.push(updatedChunkWithError);
+          }
+          
+          console.log('📦 [CHUNKED-RECORDING] Completing with error chunk included:', finalChunks.length);
+          onRecordingComplete(finalChunks);
+          return finalChunks;
+        });
+      }
     }
   }, [sessionId, patientId, doctorId, onChunkTranscribed, onError]);
 
