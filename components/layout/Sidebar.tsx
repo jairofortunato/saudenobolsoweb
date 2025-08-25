@@ -146,7 +146,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
 
     const doctorNavItems = [
       { 
-        href: '/doctor/prontodoc', 
+        href: '/doctor/prontodoc-realtime', 
         label: 'Prontuário', 
         icon: <IconFileText />,
       },

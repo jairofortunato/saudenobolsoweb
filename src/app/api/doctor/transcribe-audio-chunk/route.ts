@@ -124,8 +124,8 @@ export async function POST(request: NextRequest) {
     console.log('  - AI_PROCESSOR_URL:', process.env.AI_PROCESSOR_URL || 'Not set');
     console.log('  - Final aiProcessorUrl:', aiProcessorUrl);
     
-    // Use regular transcription endpoint for now (chunked endpoint not implemented yet)
-    const transcriptionUrl = `${aiProcessorUrl.replace(/\/$/, '')}/api/prontodoc/prerecorded/transcribe-openai-whisper`;
+    // Use proper chunked transcription endpoint
+    const transcriptionUrl = `${aiProcessorUrl.replace(/\/$/, '')}/api/prontodoc/chunked/transcribe-audio-chunk`;
     
     console.log('🌐 [TRANSCRIBE-AUDIO-CHUNK] AI Processor configuration:');
     console.log('  - Base URL:', aiProcessorUrl);
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
         
         // Create AbortController for manual timeout control
         const abortController = new AbortController();
-        const timeoutId = setTimeout(() => abortController.abort(), 300000); // 5 minute timeout
+        const timeoutId = setTimeout(() => abortController.abort(), 900000); // 15 minute timeout for large chunks
         
         response = await fetch(transcriptionUrl, {
           method: 'POST',

@@ -614,6 +614,19 @@ export function RecordingAndTranscription({
   const handleChunkedRecordingComplete = useCallback(async (chunks) => {
     console.log('🏁 [CHUNKED] Recording complete with', chunks.length, 'chunks');
     
+    // Enhanced chunk debugging
+    console.log('📊 [CHUNKED] Chunk details:');
+    chunks.forEach((chunk, index) => {
+      console.log(`  Chunk ${index}: #${chunk.chunk_number}, transcript length: ${chunk.transcript?.length || 0}, confidence: ${chunk.confidence}, status: ${chunk.processing_status}`);
+    });
+    
+    // Validate chunks have transcripts
+    const chunksWithTranscripts = chunks.filter(chunk => 
+      chunk.transcript && chunk.transcript.trim().length > 0 && chunk.processing_status === 'completed'
+    );
+    
+    console.log('✅ [CHUNKED] Valid chunks with transcripts:', chunksWithTranscripts.length);
+    
     // If no chunks were recorded, show error
     if (!chunks || chunks.length === 0) {
       console.error('❌ [CHUNKED] No audio chunks recorded');
@@ -626,21 +639,38 @@ export function RecordingAndTranscription({
       return;
     }
     
+    // If no chunks have valid transcripts, show error
+    if (chunksWithTranscripts.length === 0) {
+      console.error('❌ [CHUNKED] No chunks have valid transcripts');
+      setError('Nenhuma transcrição foi gerada. Tente gravar novamente.');
+      
+      // Complete session anyway
+      if ((window as any).sessionManager) {
+        (window as any).sessionManager.completeSession();
+      }
+      return;
+    }
+    
     setIsGeneratingFinalProntuario(true);
     
     try {
+      // Use only chunks with valid transcripts
+      const validChunks = chunksWithTranscripts.sort((a, b) => a.chunk_number - b.chunk_number);
+      
       // For single chunk (short recording), use regular prontuário generation
-      if (chunks.length === 1) {
+      if (validChunks.length === 1) {
         console.log('📝 [SINGLE-CHUNK] Using regular prontuário generation for single chunk');
+        console.log('📝 [SINGLE-CHUNK] Transcript length:', validChunks[0].transcript.length);
         setIsGeneratingProntuario(true);
-        await handleGenerateProntuario(chunks[0].transcript);
+        await handleGenerateProntuario(validChunks[0].transcript);
         setIsGeneratingProntuario(false);
       } else {
         // For multiple chunks, use final prontuário generation
-        console.log('📚 [MULTI-CHUNK] Using final prontuário generation for', chunks.length, 'chunks');
+        console.log('📚 [MULTI-CHUNK] Using final prontuário generation for', validChunks.length, 'valid chunks out of', chunks.length, 'total chunks');
+        console.log('📚 [MULTI-CHUNK] Combined transcript length:', validChunks.reduce((total, chunk) => total + (chunk.transcript?.length || 0), 0));
         
         const requestBody = {
-          transcription_chunks: chunks.map(chunk => ({
+          transcription_chunks: validChunks.map(chunk => ({
             chunk_number: chunk.chunk_number,
             transcript: chunk.transcript,
             timestamp: chunk.timestamp,
@@ -660,6 +690,12 @@ export function RecordingAndTranscription({
         };
         
         console.log('📤 [FINAL-PRONTUARIO] Sending request for final prontuário');
+        console.log('📤 [FINAL-PRONTUARIO] Request body details:');
+        console.log('  - Total chunks being sent:', requestBody.transcription_chunks.length);
+        requestBody.transcription_chunks.forEach((chunk, index) => {
+          console.log(`  - Chunk ${index}: #${chunk.chunk_number}, transcript preview: "${chunk.transcript.substring(0, 100)}..."`);
+        });
+        
         const response = await fetch('/api/doctor/generate-final-prontuario', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

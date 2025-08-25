@@ -33,6 +33,7 @@ interface ChunkedRecordingChunk {
   confidence: number;
   timestamp: string;
   processing_status: 'pending' | 'processing' | 'completed' | 'error';
+  quality_warning?: string;
 }
 
 interface ChunkedRecordingManagerProps {
@@ -46,8 +47,53 @@ interface ChunkedRecordingManagerProps {
   className?: string;
 }
 
-const CHUNK_DURATION_MS = 2 * 60 * 1000; // 2 minutes in milliseconds to prevent size issues
-const MAX_CHUNK_SIZE_MB = 4; // Maximum chunk size in MB before forced split
+const CHUNK_DURATION_MS = 4 * 60 * 1000; // 4 minutes in milliseconds as per system design
+const MAX_CHUNK_SIZE_MB = 3; // Maximum chunk size in MB before forced split (reduced for mobile compatibility)
+const MOBILE_CHUNK_SIZE_MB = 2; // Even smaller chunks for mobile devices
+
+/**
+ * Detect repetitive content that indicates poor audio quality
+ */
+function isRepetitiveContent(transcript: string): boolean {
+  if (!transcript || transcript.length < 50) return false;
+  
+  // Convert to lowercase and remove punctuation for analysis
+  const cleanText = transcript.toLowerCase().replace(/[.,!?;:\s]+/g, ' ').trim();
+  const words = cleanText.split(' ').filter(word => word.length > 0);
+  
+  if (words.length < 10) return false;
+  
+  // Check for excessive repetition of the same phrase
+  const phrases: { [key: string]: number } = {};
+  for (let i = 0; i < words.length - 2; i++) {
+    const phrase = words.slice(i, i + 3).join(' '); // 3-word phrases
+    phrases[phrase] = (phrases[phrase] || 0) + 1;
+  }
+  
+  // Check if any phrase repeats more than 30% of the total phrases
+  const totalPhrases = words.length - 2;
+  for (const [phrase, count] of Object.entries(phrases)) {
+    if (count / totalPhrases > 0.3) {
+      console.warn('🔍 [QUALITY-CHECK] Repetitive phrase detected:', phrase, 'appears', count, 'times out of', totalPhrases);
+      return true;
+    }
+  }
+  
+  // Check for single word repetition (like "alô alô alô...")
+  const wordCounts: { [key: string]: number } = {};
+  words.forEach(word => {
+    wordCounts[word] = (wordCounts[word] || 0) + 1;
+  });
+  
+  for (const [word, count] of Object.entries(wordCounts)) {
+    if (count > words.length * 0.4 && word.length > 2) {
+      console.warn('🔍 [QUALITY-CHECK] Repetitive word detected:', word, 'appears', count, 'times out of', words.length);
+      return true;
+    }
+  }
+  
+  return false;
+}
 
 /**
  * Simple audio blob compression by creating a new blob with reduced quality
@@ -79,6 +125,7 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
   const [isProcessingChunk, setIsProcessingChunk] = useState(false);
   const [currentChunkSize, setCurrentChunkSize] = useState(0);
   const [activeTimers, setActiveTimers] = useState(0);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -88,6 +135,17 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
   const pendingCompletionRef = useRef(false);
   const currentChunkRef = useRef(0);
   const isRecordingRef = useRef(false);
+
+  // Detect mobile device
+  useEffect(() => {
+    const detectMobile = () => {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+      setIsMobileDevice(isMobile);
+      console.log('📱 [CHUNKED-RECORDING] Device detection:', isMobile ? 'Mobile' : 'Desktop');
+    };
+    detectMobile();
+  }, []);
 
   // Only log on significant state changes
   const prevRecordingRef = useRef(isRecording);
@@ -101,7 +159,8 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
         totalRecordingTime,
         currentChunkTime,
         chunksCount: chunks.length,
-        sessionId
+        sessionId,
+        isMobile: isMobileDevice
       });
       prevRecordingRef.current = isRecording;
       prevChunkRef.current = currentChunk;
@@ -109,7 +168,7 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
     // Update refs for timer access
     currentChunkRef.current = currentChunk;
     isRecordingRef.current = isRecording;
-  }, [isRecording, currentChunk, totalRecordingTime, currentChunkTime, chunks.length, sessionId]);
+  }, [isRecording, currentChunk, totalRecordingTime, currentChunkTime, chunks.length, sessionId, isMobileDevice]);
 
   // Start new MediaRecorder for current chunk
   const startMediaRecorder = useCallback(async (stream?: MediaStream): Promise<boolean> => {
@@ -132,17 +191,23 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
       // Clear previous audio chunks and reset size
       audioChunksRef.current = [];
       setCurrentChunkSize(0);
+      
+      // Add delay for mobile devices to prevent overlapping
+      if (isMobileDevice) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        console.log('📱 [CHUNKED-RECORDING] Mobile delay applied before starting MediaRecorder');
+      }
 
-      // Create new MediaRecorder with format fallback
+      // Create new MediaRecorder with format fallback - prioritize high quality formats
       let mediaRecorder: MediaRecorder;
       const supportedTypes = [
         'audio/webm;codecs=opus',
+        'audio/mp4;codecs=mp4a.40.2', // AAC for better quality
         'audio/webm',
-        'audio/mp4',
         'audio/wav'
       ];
       
-      let selectedType = 'audio/webm';
+      let selectedType = 'audio/webm;codecs=opus';
       for (const type of supportedTypes) {
         if (MediaRecorder.isTypeSupported(type)) {
           selectedType = type;
@@ -153,18 +218,25 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
       console.log('🎤 [CHUNKED-RECORDING] Using MIME type:', selectedType);
       
       try {
+        // Use higher quality bitrates for better transcription accuracy
+        const audioBitsPerSecond = isMobileDevice ? 64000 : 128000; // Increased from 12k/16k to 64k/128k
         mediaRecorder = new MediaRecorder(currentStream, {
           mimeType: selectedType,
-          audioBitsPerSecond: 16000 // Lower bitrate to reduce file size
+          audioBitsPerSecond
         });
+        console.log('🎤 [CHUNKED-RECORDING] MediaRecorder configured with bitrate:', audioBitsPerSecond);
       } catch (error) {
         console.warn('⚠️ [CHUNKED-RECORDING] Fallback to default MediaRecorder');
         try {
+          // Fallback with still reasonable quality
+          const audioBitsPerSecond = isMobileDevice ? 32000 : 64000;
           mediaRecorder = new MediaRecorder(currentStream, {
-            audioBitsPerSecond: 16000
+            audioBitsPerSecond
           });
+          console.log('🎤 [CHUNKED-RECORDING] MediaRecorder fallback with bitrate:', audioBitsPerSecond);
         } catch {
           mediaRecorder = new MediaRecorder(currentStream);
+          console.log('🎤 [CHUNKED-RECORDING] MediaRecorder using default settings');
         }
       }
 
@@ -175,9 +247,10 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
           setCurrentChunkSize(totalChunkSize);
           console.log('📁 [CHUNKED-RECORDING] Audio data collected:', event.data.size, 'bytes, total chunk size:', Math.round(totalChunkSize / 1024 / 1024 * 100) / 100, 'MB');
           
-          // Check if chunk size exceeds limit and force a split
-          if (totalChunkSize > MAX_CHUNK_SIZE_MB * 1024 * 1024) {
-            console.log('⚠️ [CHUNKED-RECORDING] Chunk size limit exceeded, forcing split at', Math.round(totalChunkSize / 1024 / 1024 * 100) / 100, 'MB');
+          // Check if chunk size exceeds limit and force a split (use mobile-specific limit)
+          const sizeLimit = isMobileDevice ? MOBILE_CHUNK_SIZE_MB : MAX_CHUNK_SIZE_MB;
+          if (totalChunkSize > sizeLimit * 1024 * 1024) {
+            console.log('⚠️ [CHUNKED-RECORDING] Chunk size limit exceeded, forcing split at', Math.round(totalChunkSize / 1024 / 1024 * 100) / 100, 'MB (limit:', sizeLimit, 'MB for', isMobileDevice ? 'mobile' : 'desktop', ')');
             // Stop current recorder immediately to prevent further growth
             if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
               console.log('🔄 [CHUNKED-RECORDING] Stopping current recorder due to size limit');
@@ -195,8 +268,20 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
       };
 
       mediaRecorder.onstop = async () => {
-        console.log('🛑 [CHUNKED-RECORDING] MediaRecorder stopped for chunk', currentChunk);
+        const stoppedChunk = currentChunkRef.current;
+        console.log('🛑 [CHUNKED-RECORDING] MediaRecorder stopped for chunk', stoppedChunk);
+        console.log('🛑 [CHUNKED-RECORDING] Audio chunks collected:', audioChunksRef.current.length);
+        console.log('🛑 [CHUNKED-RECORDING] Total audio size:', audioChunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0), 'bytes');
+        console.log('🛑 [CHUNKED-RECORDING] Is recording still active:', isRecordingRef.current);
+        
+        // Always process the current chunk
         await processCurrentChunk();
+        
+        // NOTE: Do not auto-start next chunk here since it's handled by either:
+        // 1. switchToNextChunk() from timer
+        // 2. Manual stopChunkedRecording() call
+        // This prevents race conditions and duplicate chunk creation
+        console.log('🏁 [CHUNKED-RECORDING] Chunk processing complete for chunk', stoppedChunk);
       };
 
       mediaRecorder.onerror = (event) => {
@@ -206,9 +291,10 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
 
       mediaRecorderRef.current = mediaRecorder;
       
-      // Start recording with more frequent data collection for size monitoring
-      mediaRecorder.start(500); // Collect data every 500ms for better size control
-      console.log('✅ [CHUNKED-RECORDING] MediaRecorder started for chunk', currentChunk);
+      // Start recording with adjusted data collection frequency - more frequent for better quality
+      const dataInterval = isMobileDevice ? 500 : 250; // More frequent for better audio continuity
+      mediaRecorder.start(dataInterval);
+      console.log('✅ [CHUNKED-RECORDING] MediaRecorder started for chunk', currentChunk, 'with', dataInterval, 'ms interval');
       
       return true;
     } catch (error) {
@@ -230,9 +316,24 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
     setIsProcessingChunk(true);
 
     try {
-      // Create blob from audio chunks
-      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-      console.log('📦 [CHUNKED-RECORDING] Created audio blob:', audioBlob.size, 'bytes');
+      // Validate we have audio chunks
+      if (audioChunksRef.current.length === 0) {
+        console.warn('⚠️ [CHUNKED-RECORDING] No audio chunks available for processing');
+        return;
+      }
+      
+      // Create blob from audio chunks with proper MIME type detection
+      const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
+      const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+      console.log('📦 [CHUNKED-RECORDING] Created audio blob:', audioBlob.size, 'bytes, MIME:', mimeType);
+      
+      // Enhanced validation for audio quality
+      if (audioBlob.size < 1024) {
+        console.warn('⚠️ [CHUNKED-RECORDING] Chunk too small, may indicate recording issue or silence');
+        console.warn('⚠️ [CHUNKED-RECORDING] Check microphone permissions and audio input levels');
+      } else if (audioBlob.size < 10240) { // Less than 10KB for a 4-minute chunk is very small
+        console.warn('⚠️ [CHUNKED-RECORDING] Unusually small audio chunk, may indicate low audio levels');
+      }
 
       // Create chunk object
       const chunkData: ChunkedRecordingChunk = {
@@ -244,10 +345,21 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
         processing_status: 'pending'
       };
 
+      console.log('📦 [CHUNKED-RECORDING] Created chunk data:');
+      console.log('  - Chunk number:', chunkData.chunk_number);
+      console.log('  - Audio blob size:', chunkData.audio_blob.size);
+      console.log('  - Timestamp:', chunkData.timestamp);
+      console.log('  - Current total chunks will be:', currentChunk + 1);
+
       // Update chunks state
-      setChunks(prev => [...prev, chunkData]);
+      setChunks(prev => {
+        const newChunks = [...prev, chunkData];
+        console.log('📊 [CHUNKED-RECORDING] Updated chunks state - total chunks:', newChunks.length);
+        return newChunks;
+      });
 
       // Send chunk for transcription
+      console.log('🚀 [CHUNKED-RECORDING] Sending chunk', chunkData.chunk_number, 'for transcription');
       await transcribeChunk(chunkData);
 
     } catch (error) {
@@ -297,7 +409,8 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
       }
 
       // Check if chunk is still too large and attempt basic optimization
-      const maxSizeBytes = 6 * 1024 * 1024; // 6MB limit for Vercel
+      // Use smaller limits for mobile devices to prevent processing issues
+      const maxSizeBytes = isMobileDevice ? 4 * 1024 * 1024 : 6 * 1024 * 1024; // 4MB for mobile, 6MB for desktop
       let finalAudioBlob = chunk.audio_blob;
       
       if (chunk.audio_blob.size > maxSizeBytes) {
@@ -320,12 +433,16 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
         }
       }
 
+      // Determine if this is the final chunk
+      // A chunk is final if recording has stopped and this is the last chunk
+      const isFinalChunk = !isRecordingRef.current;
+      
       // Prepare form data for chunked transcription API
       const formData = new FormData();
       formData.append('audio_file', finalAudioBlob, `chunk-${chunk.chunk_number}.${fileExtension}`);
       formData.append('session_id', sessionId);
       formData.append('chunk_number', chunk.chunk_number.toString());
-      formData.append('is_final_chunk', 'false'); // Will be updated for final chunk
+      formData.append('is_final_chunk', isFinalChunk.toString());
       formData.append('patient_id', patientId);
       formData.append('doctor_id', doctorId);
       formData.append('language', 'pt');
@@ -335,7 +452,9 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
       console.log('📤 [CHUNKED-RECORDING] Sending chunk to transcription API');
       console.log('  - Chunk number:', chunk.chunk_number);
       console.log('  - Session ID:', sessionId);
-      console.log('  - Is final chunk:', chunk.chunk_number === currentChunk - 1 && !isRecording);
+      console.log('  - Is final chunk:', isFinalChunk);
+      console.log('  - Current chunk number:', currentChunk);
+      console.log('  - Is recording:', isRecordingRef.current);
       console.log('  - Audio blob size:', finalAudioBlob.size);
       console.log('  - Request URL: /api/doctor/transcribe-audio-chunk');
       console.log('  - Window location:', window.location.href);
@@ -376,6 +495,18 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
       }
 
       const result = await response.json();
+      
+      // Quality check: detect repetitive transcriptions that indicate audio issues
+      const transcript = result.transcript || '';
+      if (transcript && isRepetitiveContent(transcript)) {
+        console.warn('⚠️ [CHUNKED-RECORDING] Detected repetitive transcription, likely audio quality issue');
+        console.warn('⚠️ [CHUNKED-RECORDING] Transcript preview:', transcript.substring(0, 200));
+        
+        // Add quality warning to the result
+        result.quality_warning = 'Repetitive content detected - check microphone and audio setup';
+        result.confidence = Math.min(result.confidence || 0, 0.3); // Lower confidence for repetitive content
+      }
+      
       console.log('✅ [CHUNKED-RECORDING] Chunk transcription successful:', result);
 
       // Update chunk with transcription results
@@ -383,7 +514,8 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
         ...chunk,
         transcript: result.transcript || '',
         confidence: result.confidence || 0,
-        processing_status: 'completed'
+        processing_status: 'completed',
+        quality_warning: result.quality_warning
       };
 
       setChunks(prev => prev.map(c => 
@@ -475,10 +607,11 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
           console.log('🖥️ [CHUNKED-RECORDING] Requesting system audio capture...');
           stream = await navigator.mediaDevices.getDisplayMedia({ 
             audio: {
-              echoCancellation: false,
-              noiseSuppression: false,
-              autoGainControl: false,
-              sampleRate: 44100
+              echoCancellation: true,  // Enable to reduce feedback
+              noiseSuppression: true,  // Enable to improve audio quality
+              autoGainControl: true,   // Enable for consistent volume
+              sampleRate: 48000,       // Higher sample rate for better quality
+              channelCount: 1         // Mono for consistency and smaller files
             },
             video: false // We only want audio
           });
@@ -490,7 +623,9 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
             audio: {
               echoCancellation: true,
               noiseSuppression: true,
-              sampleRate: 44100
+              autoGainControl: true,
+              sampleRate: 48000,      // Higher sample rate for better quality
+              channelCount: 1        // Mono for consistency
             } 
           });
         }
@@ -501,7 +636,9 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            sampleRate: 44100
+            autoGainControl: true,
+            sampleRate: 48000,        // Higher sample rate for better quality
+            channelCount: 1          // Mono for consistency
           } 
         });
         console.log('✅ [CHUNKED-RECORDING] Microphone access granted');
@@ -539,8 +676,8 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
         setTotalRecordingTime(prev => prev + 1);
       }, 1000);
 
-      // Set up automatic chunk switching (only if recording continues for 2+ minutes)
-      console.log('⏰ [CHUNKED-RECORDING] Setting up first chunk timer for', CHUNK_DURATION_MS / 1000, 'seconds');
+      // Set up automatic chunk switching (4-minute chunks as per system design)
+      console.log('⏰ [CHUNKED-RECORDING] Setting up first chunk timer for', CHUNK_DURATION_MS / 1000, 'seconds', isMobileDevice ? '(mobile)' : '(desktop)');
       setActiveTimers(1);
       recordingTimerRef.current = setTimeout(async () => {
         console.log('⏰ [CHUNKED-RECORDING] First chunk timer triggered! Checking recording state...');
@@ -548,7 +685,7 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
         console.log('📊 [CHUNKED-RECORDING] Is recording ref:', isRecordingRef.current);
         
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording' && isRecordingRef.current) {
-          console.log('⏰ [CHUNKED-RECORDING] 2-minute chunk completed, switching to next chunk for long consultation');
+          console.log('⏰ [CHUNKED-RECORDING] 4-minute chunk completed, switching to next chunk for long consultation');
           setActiveTimers(prev => prev - 1); // This timer is firing, so decrease count
           await switchToNextChunk();
         } else {
@@ -571,13 +708,22 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
     console.log('🔄 [CHUNKED-RECORDING] Switching to next chunk from', currentChunkRef.current);
 
     try {
-      // Stop current MediaRecorder (this will trigger processCurrentChunk)
+      // Stop current MediaRecorder (this will trigger processCurrentChunk via onstop)
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        console.log('🛑 [CHUNKED-RECORDING] Stopping current MediaRecorder for chunk', currentChunkRef.current);
         mediaRecorderRef.current.stop();
       }
 
-      // Wait a brief moment for processing to start
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for the current chunk to be processed
+      const waitTime = isMobileDevice ? 500 : 300;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      console.log('⏳ [CHUNKED-RECORDING] Waited', waitTime, 'ms for chunk processing');
+
+      // Check if recording is still active (user might have stopped during processing)
+      if (!isRecordingRef.current) {
+        console.log('🏁 [CHUNKED-RECORDING] Recording stopped during chunk switch - aborting next chunk');
+        return;
+      }
 
       // Increment chunk number and reset chunk timer and size
       const nextChunkNumber = currentChunkRef.current + 1;
@@ -608,7 +754,7 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
         console.log('📊 [CHUNKED-RECORDING] Is recording ref:', isRecordingRef.current);
         
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording' && isRecordingRef.current) {
-          console.log('⏰ [CHUNKED-RECORDING] Next 2-minute chunk completed, switching again');
+          console.log('⏰ [CHUNKED-RECORDING] Next 4-minute chunk completed, switching again');
           setActiveTimers(prev => prev - 1); // This timer is firing, so decrease count
           await switchToNextChunk();
         } else {
@@ -676,12 +822,31 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
           pendingCompletion: pendingCompletionRef.current
         });
         
-        // If there are already processed chunks OR if we're not processing anything,
-        // we should complete immediately
-        if (currentChunks.length > 0 && !isProcessingChunk) {
-          console.log('📦 [CHUNKED-RECORDING] Completing immediately with existing chunks');
+        // Wait for all chunks to be transcribed before completing
+        const pendingChunks = currentChunks.filter(chunk => chunk.processing_status === 'processing');
+        const completedChunks = currentChunks.filter(chunk => chunk.processing_status === 'completed');
+        
+        console.log('📊 [CHUNKED-RECORDING] Chunk status summary:');
+        console.log('  - Total chunks:', currentChunks.length);
+        console.log('  - Completed chunks:', completedChunks.length);
+        console.log('  - Pending chunks:', pendingChunks.length);
+        console.log('  - Is processing chunk:', isProcessingChunk);
+        
+        // Only complete if we have chunks and none are pending
+        if (currentChunks.length > 0 && pendingChunks.length === 0 && !isProcessingChunk) {
+          console.log('📦 [CHUNKED-RECORDING] All chunks completed - completing now');
           pendingCompletionRef.current = false;
-          onRecordingComplete(currentChunks);
+          
+          // Add a small delay to ensure all state updates are complete
+          setTimeout(() => {
+            onRecordingComplete(completedChunks);
+          }, 500);
+        } else if (currentChunks.length === 0) {
+          console.log('❌ [CHUNKED-RECORDING] No chunks recorded - completing with empty array');
+          pendingCompletionRef.current = false;
+          onRecordingComplete([]);
+        } else {
+          console.log('⏳ [CHUNKED-RECORDING] Waiting for chunks to complete transcription...');
         }
         // Otherwise, transcribeChunk will handle completion when the final chunk is done
         
@@ -783,7 +948,7 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
               <span className="font-medium text-red-700">
-                {totalRecordingTime < 120 ? 'Gravando Consulta' : `Gravando - Segmento ${currentChunk + 1}`}
+                {totalRecordingTime < 240 ? 'Gravando Consulta' : `Gravando - Segmento ${currentChunk + 1}`}
               </span>
             </div>
             <div className="text-sm text-gray-600">
@@ -794,20 +959,20 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-gray-600">
-                {totalRecordingTime < 120 ? 'Tempo atual:' : 'Tempo do segmento:'}
+                {totalRecordingTime < 240 ? 'Tempo atual:' : 'Tempo do segmento:'}
               </span>
               <div className="font-mono text-lg">{formatTime(currentChunkTime)}</div>
-              {totalRecordingTime < 120 ? (
+              {totalRecordingTime < 240 ? (
                 <div className="text-xs text-gray-500">
-                  Gravação contínua em andamento
+                  Gravação contínua em andamento {isMobileDevice ? '(mobile)' : '(desktop)'}
                 </div>
               ) : (
                 <div className="text-xs text-gray-500">
-                  Próximo segmento em: {formatTime(Math.max(0, 120 - currentChunkTime))}
+                  Próximo segmento em: {formatTime(Math.max(0, 240 - currentChunkTime))}
                   <br />
-                  Tamanho atual: {Math.round(currentChunkSize / 1024 / 1024 * 100) / 100} MB / 4 MB max
+                  Tamanho atual: {Math.round(currentChunkSize / 1024 / 1024 * 100) / 100} MB / {isMobileDevice ? '2' : '3'} MB max
                   <br />
-                  Timers ativos: {activeTimers}
+                  Timers ativos: {activeTimers} | Dispositivo: {isMobileDevice ? 'Mobile' : 'Desktop'}
                 </div>
               )}
             </div>
@@ -826,7 +991,7 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
         <div className="chunks-status mt-4">
           <h4 className="font-medium text-gray-700 mb-2">Segmentos da Consulta</h4>
           <div className="space-y-2">
-            {chunks.map((chunk, index) => (
+            {chunks.map((chunk) => (
               <div 
                 key={chunk.chunk_number} 
                 className={`p-3 rounded border ${
@@ -854,6 +1019,11 @@ export const ChunkedRecordingManager = forwardRef<any, ChunkedRecordingManagerPr
                   <div className="mt-2 text-sm text-gray-600">
                     <div>Palavras: {chunk.transcript.split(' ').length}</div>
                     <div>Confiança: {(chunk.confidence * 100).toFixed(1)}%</div>
+                    {chunk.quality_warning && (
+                      <div className="mt-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                        ⚠️ {chunk.quality_warning}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

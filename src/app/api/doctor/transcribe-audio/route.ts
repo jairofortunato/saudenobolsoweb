@@ -72,7 +72,21 @@ export async function POST(request: NextRequest) {
     console.log('📁 [TRANSCRIBE-AUDIO] Audio file info:');
     console.log('  - filename:', audioFile.name);
     console.log('  - size:', audioFile.size, 'bytes');
+    console.log('  - size (MB):', Math.round(audioFile.size / 1024 / 1024 * 100) / 100);
     console.log('  - type:', audioFile.type);
+
+    // Check file size limit - 10MB max for single files
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (audioFile.size > MAX_FILE_SIZE) {
+      console.error('❌ [TRANSCRIBE-AUDIO] File too large:', Math.round(audioFile.size / 1024 / 1024 * 100) / 100, 'MB');
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Arquivo muito grande (${Math.round(audioFile.size / 1024 / 1024 * 100) / 100} MB). Limite máximo: 10 MB. Use a gravação por segmentos para arquivos maiores.` 
+        },
+        { status: 413 }
+      );
+    }
 
     // Validate required fields
     if (!sessionId || !patientId || !doctorId) {
@@ -108,11 +122,41 @@ export async function POST(request: NextRequest) {
     console.log('📤 [TRANSCRIBE-AUDIO] Forwarding to AI processor...');
     const startRequestTime = Date.now();
     
-    // Forward request to AI processor
-    const response = await fetch(transcriptionUrl, {
-      method: 'POST',
-      body: aiProcessorFormData
-    });
+    // Calculate timeout based on file size (minimum 2 minutes, +30s per MB)
+    const fileSizeMB = audioFile.size / (1024 * 1024);
+    const timeoutMs = Math.max(120000, 120000 + (fileSizeMB * 30000)); // 2min + 30s per MB
+    console.log('⏰ [TRANSCRIBE-AUDIO] Calculated timeout:', Math.round(timeoutMs / 1000), 'seconds for', Math.round(fileSizeMB * 100) / 100, 'MB file');
+    
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn('⏰ [TRANSCRIBE-AUDIO] Request timeout after', Math.round(timeoutMs / 1000), 'seconds');
+      controller.abort();
+    }, timeoutMs);
+
+    let response;
+    try {
+      // Forward request to AI processor with timeout
+      response = await fetch(transcriptionUrl, {
+        method: 'POST',
+        body: aiProcessorFormData,
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error('⏰ [TRANSCRIBE-AUDIO] Request aborted due to timeout');
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: `Timeout na transcrição após ${Math.round(timeoutMs / 1000)} segundos. O arquivo pode ser muito grande ou o serviço está ocupado.` 
+          },
+          { status: 408 }
+        );
+      }
+      throw error;
+    }
 
     const requestDuration = Date.now() - startRequestTime;
 
