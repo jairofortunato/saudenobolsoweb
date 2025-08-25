@@ -190,14 +190,29 @@ export function RealtimeRecordingManager({
         body: formData,
       });
 
-      const result = await response.json();
-      
-      console.log(`📥 [REALTIME] Transcription response for chunk ${chunkNumber + 1}:`, result);
+      let result;
+      try {
+        result = await response.json();
+        console.log(`📥 [REALTIME] Transcription response for chunk ${chunkNumber + 1}:`, result);
+      } catch (jsonError) {
+        // Handle non-JSON responses (like 413 HTML error pages)
+        console.error(`❌ [REALTIME] Failed to parse response as JSON for chunk ${chunkNumber + 1}:`, jsonError);
+        
+        if (response.status === 413) {
+          throw new Error(`Arquivo muito grande (${Math.round(audioBlob.size / 1024 / 1024 * 100) / 100} MB). Máximo: 10 MB. Tente gravação de menor duração.`);
+        } else if (response.status === 408) {
+          throw new Error(`Timeout na transcrição. O arquivo pode ser muito grande.`);
+        } else {
+          // Try to get error text from response
+          const errorText = await response.text().catch(() => 'Erro desconhecido');
+          throw new Error(`Erro na transcrição (HTTP ${response.status}): ${errorText.substring(0, 100)}`);
+        }
+      }
 
       if (!response.ok || !result.success) {
         // Handle specific error types
         if (response.status === 413) {
-          throw new Error(`Chunk muito grande para transcrição. Tente usar gravação mais curta ou qualidade menor.`);
+          throw new Error(`Chunk muito grande para transcrição (${Math.round(audioBlob.size / 1024 / 1024 * 100) / 100} MB). Máximo: 10 MB.`);
         } else if (response.status === 408) {
           throw new Error(`Timeout na transcrição do chunk. O arquivo pode ser muito grande.`);
         } else {
@@ -253,12 +268,12 @@ export function RealtimeRecordingManager({
       // Create new MediaRecorder for this chunk with compression settings
       let mediaRecorder: MediaRecorder;
       
-      // Try different MIME types with lower bitrates for smaller files
+      // Try different MIME types with very low bitrates for much smaller files
       const recordingOptions = [
-        { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 64000 }, // 64kbps for smaller files
-        { mimeType: 'audio/webm', audioBitsPerSecond: 64000 },
-        { mimeType: 'audio/mp4', audioBitsPerSecond: 64000 },
-        { audioBitsPerSecond: 64000 } // Fallback with just bitrate
+        { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 32000 }, // 32kbps - very low for small files
+        { mimeType: 'audio/webm', audioBitsPerSecond: 32000 },
+        { mimeType: 'audio/mp4', audioBitsPerSecond: 32000 },
+        { audioBitsPerSecond: 32000 } // Fallback with just bitrate
       ];
 
       for (const options of recordingOptions) {
@@ -288,9 +303,17 @@ export function RealtimeRecordingManager({
           
           console.log(`🎵 [REALTIME] Audio data received for chunk ${chunkNum + 1}:`, event.data.size, 'bytes, total:', sizeMB, 'MB');
           
-          // Warn if chunk is getting too large (approaching 10MB limit)
-          if (totalSize > 8 * 1024 * 1024) { // 8MB warning threshold
-            console.warn(`⚠️ [REALTIME] Chunk ${chunkNum + 1} is getting large (${sizeMB} MB). May hit 10MB API limit.`);
+          // Force chunk split if getting too large (to prevent 413 errors)
+          if (totalSize > 6 * 1024 * 1024) { // 6MB threshold - force split early
+            console.warn(`⚠️ [REALTIME] Chunk ${chunkNum + 1} reached ${sizeMB} MB - forcing early split to prevent 413 error`);
+            
+            // Stop recording immediately and process current chunk
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+              console.log('🔄 [REALTIME] Auto-stopping chunk due to size limit');
+              mediaRecorderRef.current.stop();
+            }
+          } else if (totalSize > 4 * 1024 * 1024) { // 4MB warning threshold
+            console.warn(`⚠️ [REALTIME] Chunk ${chunkNum + 1} is getting large (${sizeMB} MB). Will split at 6MB.`);
           }
         }
       };
@@ -390,14 +413,15 @@ export function RealtimeRecordingManager({
       setSessionTimer(0);
       setSessionStarted(true); // This will trigger the independent session timer
       
-      // Request microphone access with optimized settings for smaller file sizes
+      // Request microphone access with heavily optimized settings for very small file sizes
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 16000, // Lower sample rate for smaller files (16kHz is sufficient for speech)
-          channelCount: 1     // Mono recording (smaller than stereo)
+          sampleRate: 8000,   // Very low sample rate (8kHz - phone quality, but much smaller files)
+          channelCount: 1,    // Mono recording (smaller than stereo)
+          sampleSize: 8       // Lower bit depth if supported
         } 
       });
       
