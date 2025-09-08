@@ -17,22 +17,7 @@
  * 6. Final prontuário display
  */
 
-// Wake Lock API TypeScript declarations
-declare global {
-  interface Navigator {
-    wakeLock?: {
-      request(type: 'screen'): Promise<WakeLockSentinel>;
-    };
-  }
-}
-
-interface WakeLockSentinel {
-  released: boolean;
-  type: 'screen';
-  release(): Promise<void>;
-  addEventListener(type: 'release', listener: () => void): void;
-  removeEventListener(type: 'release', listener: () => void): void;
-}
+// Wake Lock API - Using native DOM types
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useResilientRecording } from './ResilientRecordingManager';
@@ -112,7 +97,7 @@ export function RCR30Page() {
   const [pendingResults, setPendingResults] = useState<{transcript?: string, prontuario?: any} | null>(null);
 
   // Wake Lock functionality for mobile devices
-  const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null);
+  const [wakeLock, setWakeLock] = useState<any | null>(null);
   const [wakeLockSupported, setWakeLockSupported] = useState<boolean>(false);
 
   // Handle errors - declared early so it can be used in hooks
@@ -128,14 +113,24 @@ export function RCR30Page() {
 
     try {
       console.log('📱 [WAKE LOCK] Requesting wake lock to keep screen active during recording');
-      const newWakeLock = await navigator.wakeLock!.request('screen');
+      
+      // Safe access to wakeLock API
+      const wakeLockAPI = (navigator as any).wakeLock;
+      if (!wakeLockAPI || typeof wakeLockAPI.request !== 'function') {
+        console.error('❌ [WAKE LOCK] Wake Lock API not available');
+        return;
+      }
+      
+      const newWakeLock = await wakeLockAPI.request('screen');
       setWakeLock(newWakeLock);
       
       // Listen for wake lock release (user manually turns off screen, etc.)
-      newWakeLock.addEventListener('release', () => {
-        console.log('📱 [WAKE LOCK] Wake lock was released');
-        setWakeLock(null);
-      });
+      if (newWakeLock && typeof newWakeLock.addEventListener === 'function') {
+        newWakeLock.addEventListener('release', () => {
+          console.log('📱 [WAKE LOCK] Wake lock was released');
+          setWakeLock(null);
+        });
+      }
       
       console.log('✅ [WAKE LOCK] Wake lock acquired - screen will stay active');
     } catch (error) {
@@ -148,7 +143,12 @@ export function RCR30Page() {
 
     try {
       console.log('📱 [WAKE LOCK] Releasing wake lock');
-      await wakeLock.release();
+      
+      // Safe release
+      if (wakeLock && typeof wakeLock.release === 'function') {
+        await wakeLock.release();
+      }
+      
       setWakeLock(null);
       console.log('✅ [WAKE LOCK] Wake lock released - screen can sleep normally');
     } catch (error) {
@@ -158,7 +158,9 @@ export function RCR30Page() {
 
   // Check wake lock support on component mount and handle visibility changes
   useEffect(() => {
-    const supported = 'wakeLock' in navigator && navigator.wakeLock !== undefined;
+    const supported = 'wakeLock' in navigator && 
+      (navigator as any).wakeLock !== undefined &&
+      typeof (navigator as any).wakeLock?.request === 'function';
     setWakeLockSupported(supported);
     
     if (supported) {
@@ -180,7 +182,7 @@ export function RCR30Page() {
     // Cleanup on unmount
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (wakeLock) {
+      if (wakeLock && typeof wakeLock.release === 'function') {
         wakeLock.release().catch(console.error);
       }
     };
