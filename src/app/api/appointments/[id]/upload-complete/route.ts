@@ -183,7 +183,13 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         });
 
         console.log('🔗 [UPLOAD-COMPLETE] Calling AI processor endpoint...');
-        const webhookResponse = await fetch(`${railwayBackendUrl}/api/rcr30/process-appointment`, {
+        // Ensure proper URL concatenation without double slashes
+        const baseUrl = railwayBackendUrl.replace(/\/+$/, ''); // Remove trailing slashes
+        const endpoint = '/api/rcr30/process-appointment';
+        const fullUrl = `${baseUrl}${endpoint}`;
+        console.log('🔗 [UPLOAD-COMPLETE] Full URL:', fullUrl);
+        
+        const webhookResponse = await fetch(fullUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
