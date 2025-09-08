@@ -9,10 +9,10 @@ export default function Home() {
   const { user, profile, signOut } = useAuth();
   const router = useRouter();
 
-  // Redirect doctors to ProntoDoc Realtime immediately after login
+  // Redirect doctors to ProntoDoc RCR-30 immediately after login
   useEffect(() => {
     if (user && profile && profile.role === 'doctor') {
-      router.push('/doctor/prontodoc-realtime');
+      router.push('/doctor/prontodoc-rcr30');
     }
   }, [user, profile, router]);
 
@@ -43,7 +43,7 @@ export default function Home() {
                   Olá, {profile.full_name?.split(' ')[0] || 'Usuário'}
                 </span>
                 {profile.role === 'doctor' ? (
-                  <Link href="/doctor/prontodoc-realtime">
+                  <Link href="/doctor/prontodoc-rcr30">
                     <Button variant="primary" size="sm">Ir para Prontuário</Button>
                   </Link>
                 ) : (
@@ -87,7 +87,7 @@ export default function Home() {
               <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
                 {profile.role === 'doctor' ? (
                   <>
-                    <Link href="/doctor/prontodoc-realtime">
+                    <Link href="/doctor/prontodoc-rcr30">
                       <Button variant="primary" size="lg" className="min-w-[200px]">Abrir ProntoDoc</Button>
                     </Link>
                     <Link href="/doctor/search">

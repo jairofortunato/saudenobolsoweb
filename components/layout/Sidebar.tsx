@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../ui/Button';
 import { cn } from '@/lib/utils';
+import { ProntuariosList } from './ProntuariosList';
 
 export interface SidebarProps {
   className?: string;
@@ -146,8 +147,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
 
     const doctorNavItems = [
       { 
-        href: '/doctor/prontodoc-realtime', 
-        label: 'Prontuário', 
+        href: '/doctor/prontodoc-rcr30', 
+        label: 'Nova Consulta', 
         icon: <IconFileText />,
       },
     ];
@@ -171,7 +172,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           {!isCollapsed && (
             <div className="flex items-center space-x-3">
             
-              <span className="font-bold text-slate-800">Prontuário Automático</span>
+              <span className="font-bold text-slate-800">ProntoDoc</span>
             </div>
           )}
           
@@ -234,7 +235,20 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           })}
         </nav>
 
-        
+        {/* Prontuários Section - Only for doctors */}
+        {isDoctor && (
+          <div className="px-3 py-4 border-t border-slate-200">
+            <div className={cn("flex items-center justify-between mb-3", isCollapsed && "justify-center")}>
+              {!isCollapsed && (
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Consultas Recentes
+                </h3>
+              )}
+            </div>
+            
+            <ProntuariosList collapsed={isCollapsed} />
+          </div>
+        )}
 
         {/* Footer with user info */}
         {!isCollapsed && profile && (

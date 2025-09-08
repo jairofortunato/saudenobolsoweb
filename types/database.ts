@@ -145,6 +145,41 @@ export interface Database {
           }
         ]
       }
+      prontuarios: {
+        Row: Prontuario
+        Insert: ProntuarioInsert
+        Update: ProntuarioUpdate
+        Relationships: [
+          {
+            foreignKeyName: "prontuarios_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prontuarios_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prontuarios_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "prontuarios_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["profile_id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -498,6 +533,43 @@ export interface RawMedicalEntryUpdate {
   created_at?: string
   updated_at?: string | null
   is_deleted?: boolean
+}
+
+// =====================================================
+// PRONTUARIO TYPES
+// =====================================================
+
+export interface Prontuario {
+  id: string
+  appointment_id: string
+  user_id: string
+  created_at: string
+  version: number
+  content: any  // JSONB in database
+  summary: string | null
+  meta: any
+}
+
+export interface ProntuarioInsert {
+  id?: string
+  appointment_id: string
+  user_id: string
+  created_at?: string
+  version?: number
+  content: any
+  summary?: string | null
+  meta?: any
+}
+
+export interface ProntuarioUpdate {
+  id?: string
+  appointment_id?: string
+  user_id?: string
+  created_at?: string
+  version?: number
+  content?: any
+  summary?: string | null
+  meta?: any
 }
 
 // =====================================================

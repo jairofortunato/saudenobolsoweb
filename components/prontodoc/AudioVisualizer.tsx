@@ -272,11 +272,9 @@ export function AudioVisualizer({
                 <rect x="6.5" y="6.5" width="11" height="11" rx="2.2" />
               </svg>
             ) : (
-              // Microphone icon
+              // Check icon (recording done)
               <svg className="w-10 h-10 md:w-12 md:h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v4a3 3 0 0 0 3 3Z" fill="currentColor" stroke="currentColor" />
-                <path d="M19 11a7 7 0 0 1-14 0" stroke="currentColor" />
-                <path d="M12 18v4m0 0H9m3 0h3" stroke="currentColor" />
+                <path d="M20 6 9 17l-5-5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
           </button>

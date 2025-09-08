@@ -41,7 +41,10 @@ export function ConsultationTemplateSelector({
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isFallbackMode, setIsFallbackMode] = useState(false);
+  const [templateCache, setTemplateCache] = useState<Map<string, ConsultationTemplate>>(new Map());
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [visibleCount, setVisibleCount] = useState(10); // Lazy loading for large numbers
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateSpecialty, setNewTemplateSpecialty] = useState('');
   const [newTemplatePrompt, setNewTemplatePrompt] = useState(`Você é um assistente médico especializado em registros clínicos. A seguir, você receberá a transcrição de uma conversa entre um médico e um paciente. Sua tarefa é transformar essa transcrição em um prontuário clínico estruturado no seguinte formato:
@@ -81,11 +84,79 @@ Se uma informação não for mencionada na transcrição, use "Não referido(a)"
 
 Não invente dados. Apenas use o que está presente na transcrição.`);
 
+  // Template caching functions
+  const loadTemplateWithCache = useCallback(async (templateId: string): Promise<ConsultationTemplate | null> => {
+    if (templateCache.has(templateId)) {
+      return templateCache.get(templateId) || null;
+    }
+    
+    try {
+      const response = await fetch(`/api/doctor/consultation-templates/${templateId}`);
+      if (!response.ok) return null;
+      
+      const template = await response.json();
+      setTemplateCache(prev => new Map(prev).set(templateId, template));
+      return template;
+    } catch (error) {
+      console.error('Error loading template:', error);
+      return null;
+    }
+  }, [templateCache]);
+
+  const preloadDefaultTemplates = useCallback(async () => {
+    // Skip preloading during initial load to avoid 404s
+    // Templates will be cached when actually loaded via the main GET endpoint
+    console.log('🚀 [TEMPLATE-PRELOAD] Skipping preload to avoid 404s, templates will be cached on first load');
+  }, []);
+
+  // Filter templates based on search term
+  const filteredTemplates = useCallback(() => {
+    if (!searchTerm.trim()) return templates;
+    
+    return templates.filter(template =>
+      template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      template.specialty.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [templates, searchTerm]);
+
+  // Get visible templates with lazy loading
+  const visibleTemplates = useCallback(() => {
+    const filtered = filteredTemplates();
+    return filtered.slice(0, visibleCount);
+  }, [filteredTemplates, visibleCount]);
+
+  // Load more templates for large lists
+  const loadMoreTemplates = useCallback(() => {
+    setVisibleCount(prev => prev + 10);
+  }, []);
+
+  // Clear template cache (useful for development or cache invalidation)
+  const clearTemplateCache = useCallback(() => {
+    setTemplateCache(new Map());
+    console.log('Template cache cleared');
+  }, []);
+
   const loadTemplates = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
+      // Check if we have cached templates first
+      if (templateCache.size > 0) {
+        const cachedTemplates = Array.from(templateCache.values());
+        setTemplates(cachedTemplates);
+        
+        if (!selectedTemplate && cachedTemplates.length > 0) {
+          const defaultTemplate = cachedTemplates.find((t: ConsultationTemplate) => 
+            t.is_default && t.name.includes('SOAP')
+          ) || cachedTemplates.find((t: ConsultationTemplate) => t.is_default) || cachedTemplates[0];
+          
+          onTemplateSelected(defaultTemplate);
+        }
+        setIsLoading(false);
+        return;
+      }
+
       const response = await fetch('/api/doctor/consultation-templates', {
         method: 'GET',
         headers: {
@@ -100,6 +171,13 @@ Não invente dados. Apenas use o que está presente na transcrição.`);
 
       const data = await response.json();
       const loadedTemplates = data.templates || [];
+      
+      // Cache the loaded templates
+      const newCache = new Map();
+      loadedTemplates.forEach((template: ConsultationTemplate) => {
+        newCache.set(template.id, template);
+      });
+      setTemplateCache(newCache);
       
       if (data.fallback) {
         setIsFallbackMode(true);
@@ -142,7 +220,7 @@ Não invente dados. Apenas use o que está presente na transcrição.`);
     } finally {
       setIsLoading(false);
     }
-  }, [selectedTemplate, onTemplateSelected, newTemplatePrompt]);
+  }, [selectedTemplate, onTemplateSelected, newTemplatePrompt, templateCache]);
 
   const handleCreateTemplate = useCallback(async () => {
     if (!newTemplateName.trim() || !newTemplateSpecialty.trim() || !newTemplatePrompt.trim()) {
@@ -200,6 +278,8 @@ Não invente dados. Apenas use o que está presente na transcrição.`);
       const result = await response.json();
       const createdTemplate = result.template;
       
+      // Add to cache and templates list
+      setTemplateCache(prev => new Map(prev).set(createdTemplate.id, createdTemplate));
       setTemplates(prev => [...prev, createdTemplate]);
       onTemplateSelected(createdTemplate);
 
@@ -223,6 +303,11 @@ Não invente dados. Apenas use o que está presente na transcrição.`);
     loadTemplates();
   }, [loadTemplates]);
 
+  // Preload default templates on mount for better performance
+  useEffect(() => {
+    preloadDefaultTemplates();
+  }, [preloadDefaultTemplates]);
+
   return (
     <div className={`space-y-8 ${className}`}>
       {error && (
@@ -238,7 +323,21 @@ Não invente dados. Apenas use o que está presente na transcrição.`);
           Qual formato do prontuario?
         </h2>
         
-        <div className="relative  mx-auto">
+        {/* Search/Filter Input */}
+        {!isLoading && templates.length > 5 && (
+          <div className="mb-4">
+            <Input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="🔍 Buscar por nome ou especialidade..."
+              disabled={disabled}
+              className="w-full"
+            />
+          </div>
+        )}
+
+        <div className="relative mx-auto">
           <select
             value={selectedTemplate?.id || ''}
             onChange={(e) => {
@@ -251,13 +350,25 @@ Não invente dados. Apenas use o que está presente na transcrição.`);
             {isLoading ? (
               <option>Carregando templates...</option>
             ) : (
-              templates.map((template) => (
+              visibleTemplates().map((template) => (
                 <option key={template.id} value={template.id}>
                   {template.name} {template.is_default ? '(Padrão)' : ''}
                 </option>
               ))
             )}
           </select>
+
+          {/* Load More Button for Large Lists */}
+          {!isLoading && filteredTemplates().length > visibleCount && (
+            <div className="mt-2 text-center">
+              <button
+                onClick={loadMoreTemplates}
+                className="text-blue-600 hover:text-blue-800 text-sm"
+              >
+                Mostrar mais templates... ({filteredTemplates().length - visibleCount} restantes)
+              </button>
+            </div>
+          )}
           
           {isLoading && (
             <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
