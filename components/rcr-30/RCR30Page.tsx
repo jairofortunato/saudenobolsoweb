@@ -10,12 +10,29 @@
  * 
  * WORKFLOW:
  * 1. Patient selection and consultation setup
- * 2. Audio recording with 30s chunking
+ * 2. Audio recording with 30s chunking (with wake lock to prevent phone sleep)
  * 3. IndexedDB storage for resilience
  * 4. Upload to Supabase Storage
  * 5. Backend processing and status polling
  * 6. Final prontuário display
  */
+
+// Wake Lock API TypeScript declarations
+declare global {
+  interface Navigator {
+    wakeLock?: {
+      request(type: 'screen'): Promise<WakeLockSentinel>;
+    };
+  }
+}
+
+interface WakeLockSentinel {
+  released: boolean;
+  type: 'screen';
+  release(): Promise<void>;
+  addEventListener(type: 'release', listener: () => void): void;
+  removeEventListener(type: 'release', listener: () => void): void;
+}
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useResilientRecording } from './ResilientRecordingManager';
@@ -94,12 +111,80 @@ export function RCR30Page() {
   const [backendResultsReady, setBackendResultsReady] = useState<boolean>(false);
   const [pendingResults, setPendingResults] = useState<{transcript?: string, prontuario?: any} | null>(null);
 
+  // Wake Lock functionality for mobile devices
+  const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null);
+  const [wakeLockSupported, setWakeLockSupported] = useState<boolean>(false);
+
   // Handle errors - declared early so it can be used in hooks
   const handleError = useCallback((error: RCR30Error) => {
     console.error('RCR-30 Error:', error);
     setError(error);
     setWorkflowState('error');
   }, []);
+
+  // Wake Lock functionality to prevent phone from sleeping during recording
+  const requestWakeLock = useCallback(async () => {
+    if (!wakeLockSupported || wakeLock) return;
+
+    try {
+      console.log('📱 [WAKE LOCK] Requesting wake lock to keep screen active during recording');
+      const newWakeLock = await navigator.wakeLock!.request('screen');
+      setWakeLock(newWakeLock);
+      
+      // Listen for wake lock release (user manually turns off screen, etc.)
+      newWakeLock.addEventListener('release', () => {
+        console.log('📱 [WAKE LOCK] Wake lock was released');
+        setWakeLock(null);
+      });
+      
+      console.log('✅ [WAKE LOCK] Wake lock acquired - screen will stay active');
+    } catch (error) {
+      console.error('❌ [WAKE LOCK] Failed to acquire wake lock:', error);
+    }
+  }, [wakeLockSupported, wakeLock]);
+
+  const releaseWakeLock = useCallback(async () => {
+    if (!wakeLock) return;
+
+    try {
+      console.log('📱 [WAKE LOCK] Releasing wake lock');
+      await wakeLock.release();
+      setWakeLock(null);
+      console.log('✅ [WAKE LOCK] Wake lock released - screen can sleep normally');
+    } catch (error) {
+      console.error('❌ [WAKE LOCK] Failed to release wake lock:', error);
+    }
+  }, [wakeLock]);
+
+  // Check wake lock support on component mount and handle visibility changes
+  useEffect(() => {
+    const supported = 'wakeLock' in navigator && navigator.wakeLock !== undefined;
+    setWakeLockSupported(supported);
+    
+    if (supported) {
+      console.log('✅ [WAKE LOCK] Wake Lock API is supported');
+    } else {
+      console.log('⚠️ [WAKE LOCK] Wake Lock API is not supported on this device/browser');
+    }
+
+    // Re-acquire wake lock when user returns to the app during recording
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && workflowState === 'recording' && supported && !wakeLock) {
+        console.log('📱 [WAKE LOCK] App became visible during recording - re-acquiring wake lock');
+        await requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Cleanup on unmount
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (wakeLock) {
+        wakeLock.release().catch(console.error);
+      }
+    };
+  }, [wakeLock, workflowState, requestWakeLock]);
 
   // Handle patient selection and fetch medical data for existing patients
   const handlePatientSelection = useCallback(async (patient: PatientProfile | null) => {
@@ -284,6 +369,10 @@ export function RCR30Page() {
 
       // Start recording
       setWorkflowState('recording');
+      
+      // Request wake lock to keep phone awake during recording
+      await requestWakeLock();
+      
       await startRecording();
 
     } catch (error) {
@@ -300,11 +389,15 @@ export function RCR30Page() {
   const handleStopRecording = useCallback(async () => {
     try {
       await stopRecording();
+      
+      // Release wake lock when recording stops
+      await releaseWakeLock();
+      
       // handleRecordingComplete will be called automatically
     } catch (error) {
       handleError(error as RCR30Error);
     }
-  }, [stopRecording, handleError]);
+  }, [stopRecording, releaseWakeLock, handleError]);
 
   // Retry failed operations
   const handleRetry = useCallback(async () => {
@@ -347,9 +440,13 @@ export function RCR30Page() {
   }, [error, workflowState, currentAppointmentId, resetRecording, retryUpload, startNewAppointment, handleError]);
 
   // Reset all states
-  const resetAll = useCallback(() => {
+  const resetAll = useCallback(async () => {
     resetRecording();
     resetPolling();
+    
+    // Release wake lock if active
+    await releaseWakeLock();
+    
     setCurrentAppointmentId(null);
     setSelectedPatient(null);
     setSelectedPatientProfile(null);
@@ -361,7 +458,7 @@ export function RCR30Page() {
     setPendingResults(null);
     processedStatusRef.current = null; // Reset processed status tracking
     setWorkflowState('setup');
-  }, [resetRecording, resetPolling]);
+  }, [resetRecording, resetPolling, releaseWakeLock]);
 
   // Start polling when upload begins (don't wait for upload API to complete)
   useEffect(() => {
@@ -511,6 +608,29 @@ export function RCR30Page() {
                 workflowState={workflowState}
               />
               
+              {/* Wake Lock Status - Show during recording */}
+              {workflowState === 'recording' && wakeLockSupported && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-center space-x-2">
+                    {wakeLock ? (
+                      <>
+                        <span className="text-blue-600">📱</span>
+                        <p className="text-sm text-blue-700 font-medium">
+                          Tela mantida ativa para gravação longa
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-yellow-600">⚠️</span>
+                        <p className="text-sm text-yellow-700">
+                          Wake lock não está ativo - tela pode desligar
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Validation Messages */}
               {!selectedTemplate && (
                 <p className="text-sm text-red-600 mt-4 text-center">
@@ -520,6 +640,11 @@ export function RCR30Page() {
               {!capabilities.supportsMediaRecorder && (
                 <p className="text-sm text-red-600 mt-2 text-center">
                   ⚠️ Seu navegador não suporta gravação de áudio
+                </p>
+              )}
+              {!wakeLockSupported && (
+                <p className="text-sm text-amber-600 mt-2 text-center">
+                  📱 Para gravações longas, mantenha a tela ativa manualmente
                 </p>
               )}
             </div>
@@ -672,7 +797,7 @@ export function RCR30Page() {
               )}
               
               <button
-                onClick={resetAll}
+                onClick={() => resetAll()}
                 className="w-full mt-4 py-2 text-sm text-gray-600 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors duration-200"
               >
                 🔄 Começar nova consulta
