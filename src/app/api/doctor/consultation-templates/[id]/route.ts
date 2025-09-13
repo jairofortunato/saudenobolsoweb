@@ -6,11 +6,12 @@ import { createClient } from '../../../../../../lib/supabase-server';
  * INDIVIDUAL CONSULTATION TEMPLATE API
  * =====================================
  * 
- * This API handles individual consultation template retrieval.
- * Used for template caching and preloading optimizations.
+ * This API handles individual consultation template operations.
+ * Used for template caching, preloading optimizations, and updates.
  * 
- * ENDPOINT:
+ * ENDPOINTS:
  * - GET /api/doctor/consultation-templates/[id]: Fetch specific template by ID
+ * - PUT /api/doctor/consultation-templates/[id]: Update specific template by ID
  */
 
 // Initialize Supabase client with proper error handling
@@ -194,6 +195,183 @@ Não invente dados. Apenas use o que está presente na transcrição.`,
 
   } catch (error) {
     console.error('❌ [GET-TEMPLATE-BY-ID] Unexpected error:', error);
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Internal server error' 
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PUT /api/doctor/consultation-templates/[id]
+ * Updates a specific consultation template by ID
+ * Only allows updating templates created by the authenticated doctor
+ */
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const templateId = params.id;
+  
+  console.log('🚀 [PUT-TEMPLATE-BY-ID] Starting template update request for ID:', templateId);
+
+  try {
+    // Initialize Supabase client
+    let supabase;
+    try {
+      supabase = await getSupabaseClient();
+    } catch (envError) {
+      console.error('❌ [PUT-TEMPLATE-BY-ID] Environment configuration error:', envError);
+      return NextResponse.json(
+        { success: false, error: 'Database not configured' },
+        { status: 503 }
+      );
+    }
+
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.log('❌ [PUT-TEMPLATE-BY-ID] Authentication failed');
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // Get doctor profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('profile_id, role')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || !profile || profile.role !== 'doctor') {
+      console.log('❌ [PUT-TEMPLATE-BY-ID] Doctor profile not found or insufficient permissions');
+      return NextResponse.json(
+        { success: false, error: 'Doctor access required' },
+        { status: 403 }
+      );
+    }
+
+    const doctorProfileId = profile.profile_id;
+
+    // Parse request body
+    let updateData;
+    try {
+      updateData = await request.json();
+    } catch (parseError) {
+      console.error('❌ [PUT-TEMPLATE-BY-ID] Invalid JSON in request body:', parseError);
+      return NextResponse.json(
+        { success: false, error: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
+
+    // Validate that only allowed fields are being updated
+    const allowedFields = ['ai_prompt_template', 'name', 'specialty', 'template_structure', 'is_public'];
+    const updateFields = Object.keys(updateData);
+    const invalidFields = updateFields.filter(field => !allowedFields.includes(field));
+    
+    if (invalidFields.length > 0) {
+      console.log('❌ [PUT-TEMPLATE-BY-ID] Invalid fields in update:', invalidFields);
+      return NextResponse.json(
+        { success: false, error: `Invalid fields: ${invalidFields.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    if (updateFields.length === 0) {
+      console.log('❌ [PUT-TEMPLATE-BY-ID] No fields to update');
+      return NextResponse.json(
+        { success: false, error: 'No fields to update' },
+        { status: 400 }
+      );
+    }
+
+    // Check that the template exists and is owned by the doctor
+    const { data: existingTemplate, error: checkError } = await supabase
+      .from('consultation_templates')
+      .select('id, created_by, name')
+      .eq('id', templateId)
+      .eq('is_deleted', false)
+      .single();
+
+    if (checkError) {
+      if (checkError.code === 'PGRST116') { // No rows found
+        console.log('❌ [PUT-TEMPLATE-BY-ID] Template not found:', templateId);
+        return NextResponse.json(
+          { success: false, error: 'Template not found' },
+          { status: 404 }
+        );
+      }
+      
+      console.error('❌ [PUT-TEMPLATE-BY-ID] Database error checking template:', checkError);
+      return NextResponse.json(
+        { success: false, error: 'Database error' },
+        { status: 500 }
+      );
+    }
+
+    // Verify ownership
+    if (existingTemplate.created_by !== doctorProfileId) {
+      console.log('❌ [PUT-TEMPLATE-BY-ID] Template not owned by doctor:', {
+        templateId,
+        templateOwner: existingTemplate.created_by,
+        doctorId: doctorProfileId
+      });
+      return NextResponse.json(
+        { success: false, error: 'You can only edit templates you created' },
+        { status: 403 }
+      );
+    }
+
+    console.log('📋 [PUT-TEMPLATE-BY-ID] Updating template in database...');
+
+    // Perform the update
+    const { data: updatedTemplate, error: updateError } = await supabase
+      .from('consultation_templates')
+      .update({
+        ...updateData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', templateId)
+      .eq('created_by', doctorProfileId) // Additional safety check
+      .select(`
+        id,
+        name,
+        specialty,
+        template_structure,
+        ai_prompt_template,
+        is_default,
+        is_public,
+        created_by,
+        created_at,
+        updated_at
+      `)
+      .single();
+
+    if (updateError) {
+      console.error('❌ [PUT-TEMPLATE-BY-ID] Database error updating template:', updateError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to update template' },
+        { status: 500 }
+      );
+    }
+
+    console.log('✅ [PUT-TEMPLATE-BY-ID] Template updated successfully:', updatedTemplate.name);
+
+    return NextResponse.json({
+      success: true,
+      template: updatedTemplate,
+      message: 'Template updated successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ [PUT-TEMPLATE-BY-ID] Unexpected error:', error);
     return NextResponse.json(
       { 
         success: false, 

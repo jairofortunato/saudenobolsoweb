@@ -91,6 +91,15 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       </svg>
     );
 
+    const IconTemplate = () => (
+      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <path d="M9 9h6" />
+        <path d="M9 12h6" />
+        <path d="M9 15h6" />
+      </svg>
+    );
+
     const IconLogout = () => (
       <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
@@ -150,6 +159,11 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         href: '/doctor/prontodoc-rcr30', 
         label: 'Nova Consulta', 
         icon: <IconFileText />,
+      },
+      { 
+        href: '/doctor/formatos-anamnese', 
+        label: 'Formatos de Anamnese', 
+        icon: <IconTemplate />,
       },
     ];
 
