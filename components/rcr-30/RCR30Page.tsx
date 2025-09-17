@@ -29,6 +29,7 @@ import { UploadProgress } from './UploadProgress';
 import { ProcessingStatus } from './ProcessingStatus';
 import { SimpleProntuario } from './SimpleProntuario';
 import { ErrorRecovery } from './ErrorRecovery';
+import { TranscriptionDisplay } from './TranscriptionDisplay';
 import { ConsultationTemplateSelector } from '../doctor/ConsultationTemplateSelector';
 import { PatientSearchAndDisplay } from './PatientSearchAndDisplay';
 import { PatientDisplay } from './PatientDisplay';
@@ -693,6 +694,17 @@ export function RCR30Page() {
                 onSaved={(prontuarioId: string) => {
                   console.log('Prontuário saved with ID:', prontuarioId);
                 }}
+              />
+            )}
+
+            {/* Transcription Display - Show transcript when available */}
+            {(currentStatus?.transcript || pendingResults?.transcript) && workflowState === 'completed' && (
+              <TranscriptionDisplay
+                transcript={currentStatus?.transcript || pendingResults?.transcript || ''}
+                patientName={selectedPatientProfile?.name || selectedPatient?.name}
+                durationSeconds={recordingStatus.duration}
+                processingTime={completedProntuario?.processing_time}
+                className="mt-6"
               />
             )}
 
