@@ -145,18 +145,10 @@ export function useAuthState(): AuthContextType {
       
       console.log('🔧 Starting signup process...')
       
-      // Sign up user with Supabase Auth - include CPF and PIN for trigger
+      // Sign up user with Supabase Auth (simplified - no metadata to avoid trigger issues)
       const { data, error } = await supabase.auth.signUp({
         email: signUpData.email,
-        password: signUpData.password,
-        options: {
-          data: {
-            full_name: signUpData.fullName,
-            cpf: signUpData.cpf,
-            pin: signUpData.pin,
-            role: signUpData.role
-          }
-        }
+        password: signUpData.password
       })
       
       console.log('🔧 Signup response:', { 
@@ -185,16 +177,16 @@ export function useAuthState(): AuthContextType {
           }
         }
         
-        console.log('🔧 Checking if profile was linked by trigger for user:', data.user.id)
-        
-        // Wait a moment for trigger to complete, then check for linked profile
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // First, check if the trigger already linked a doctor-created profile
-        const { data: existingProfile, error: checkError } = await supabase
+        console.log('🔧 Creating profile manually for user:', data.user.id)
+
+        // Check if a doctor-created profile exists for this CPF+PIN combination
+        const { data: doctorCreatedProfile, error: checkError } = await supabase
           .from('profiles')
-          .select('profile_id, cpf, linked')
-          .eq('user_id', data.user.id)
+          .select('profile_id, cpf, linked, user_id')
+          .eq('cpf', signUpData.cpf)
+          .eq('pin', signUpData.pin)
+          .eq('role', signUpData.role)
+          .is('user_id', null) // Only unlinked profiles
           .single()
         
         if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = not found
@@ -202,12 +194,28 @@ export function useAuthState(): AuthContextType {
           // Don't fail here - might be RLS timing issue, try to create profile
         }
         
-        if (existingProfile) {
-          console.log('✅ SUCCESS: Trigger automatically linked doctor-created profile!')
-          console.log('   - Profile ID:', existingProfile.profile_id)
-          console.log('   - CPF matched:', existingProfile.cpf)
-          console.log('   - Linked status:', existingProfile.linked)
-          console.log('   - Patient now has access to all medical data added by doctor')
+        if (doctorCreatedProfile) {
+          console.log('✅ Found doctor-created profile, linking to user account!')
+          console.log('   - Profile ID:', doctorCreatedProfile.profile_id)
+          console.log('   - CPF matched:', doctorCreatedProfile.cpf)
+
+          // Link the existing profile to this user
+          const { error: linkError } = await supabase
+            .from('profiles')
+            .update({
+              user_id: data.user.id,
+              email: signUpData.email,
+              linked: true
+            })
+            .eq('profile_id', doctorCreatedProfile.profile_id)
+
+          if (linkError) {
+            console.error('❌ Error linking profile:', linkError)
+            setState((prev: AuthState) => ({ ...prev, loading: false, error: 'Failed to link existing profile' }))
+            return { success: false, error: 'Failed to link existing profile' }
+          }
+
+          console.log('✅ SUCCESS: Patient now has access to all medical data added by doctor')
         } else {
           console.log('🔧 No doctor-created profile found for this CPF, creating new profile')
           

@@ -9,10 +9,14 @@ export default function Home() {
   const { user, profile, signOut } = useAuth();
   const router = useRouter();
 
-  // Redirect doctors to ProntoDoc RCR-30 immediately after login
+  // Redirect users to their appropriate dashboards
   useEffect(() => {
-    if (user && profile && profile.role === 'doctor') {
-      router.push('/doctor/prontodoc-rcr30');
+    if (user && profile) {
+      if (profile.role === 'doctor') {
+        router.push('/doctor/dashboard');
+      } else if (profile.role === 'patient') {
+        router.push('/dashboard');
+      }
     }
   }, [user, profile, router]);
 
@@ -47,7 +51,7 @@ export default function Home() {
                     <Button variant="primary" size="sm">Ir para Prontuário</Button>
                   </Link>
                 ) : (
-                  <Link href="/medications">
+                  <Link href="/dashboard">
                     <Button variant="primary" size="sm">Meus Dados</Button>
                   </Link>
                 )}
@@ -96,8 +100,8 @@ export default function Home() {
                   </>
                 ) : (
                   <>
-                    <Link href="/medications">
-                      <Button variant="primary" size="lg" className="min-w-[200px]">Meus Medicamentos</Button>
+                    <Link href="/dashboard">
+                      <Button variant="primary" size="lg" className="min-w-[200px]">Meus Dados Médicos</Button>
                     </Link>
                     <Link href="/consultations">
                       <Button variant="secondary" size="lg" className="min-w-[200px]">Minhas Consultas</Button>
@@ -137,11 +141,27 @@ export default function Home() {
       </main>
 
       <footer className="border-t border-slate-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between text-sm text-slate-500">
-          <span>© {new Date().getFullYear()} Prontodoc</span>
-          <div className="flex items-center gap-4">
-            <Link href="/signin" className="hover:text-slate-700">Entrar</Link>
-            <Link href="/signup" className="hover:text-slate-700">Criar conta</Link>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* Legal links section */}
+          <div className="flex flex-wrap justify-center gap-6 mb-4 text-sm text-slate-500">
+            <Link href="/politica-privacidade" className="hover:text-slate-700">
+              Política de Privacidade
+            </Link>
+            <Link href="/termos-servico" className="hover:text-slate-700">
+              Termos de Serviço
+            </Link>
+            <Link href="/exclusao-dados" className="hover:text-slate-700">
+              Exclusão de Dados
+            </Link>
+          </div>
+
+          {/* Main footer content */}
+          <div className="flex items-center justify-between text-sm text-slate-500 border-t border-slate-200 pt-4">
+            <span>© {new Date().getFullYear()} Prontodoc - Saúde no Bolso</span>
+            <div className="flex items-center gap-4">
+              <Link href="/signin" className="hover:text-slate-700">Entrar</Link>
+              <Link href="/signup" className="hover:text-slate-700">Criar conta</Link>
+            </div>
           </div>
         </div>
       </footer>

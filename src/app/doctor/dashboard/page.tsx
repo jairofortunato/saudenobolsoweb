@@ -4,16 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '../../../../components/layout/DashboardLayout';
 import { useAuth } from '../../../../hooks/useAuth';
-import { 
+import {
   Loading,
   Button,
-  NovaEntradaModal,
   CreatePatientModal
 } from '../../../../components';
-import { PatientSearch } from '../../../../components/doctor/PatientSearch';
-import { PatientDisplay } from '../../../../components/doctor/PatientDisplay';
 import { getDisplayName } from '../../../../lib/auth-utils';
-import { Medication, Allergy, Exam, Disease, Consultation } from '../../../../types/database';
 import { createClient } from '../../../../lib/supabase';
 
 interface PatientProfile {
@@ -30,28 +26,13 @@ interface PatientProfile {
   created_at: string;
 }
 
-interface PatientMedicalData {
-  medications: Medication[];
-  allergies: Allergy[];
-  exams: Exam[];
-  diseases: Disease[];
-  consultations: Consultation[];
-}
-
-interface PatientSearchResult {
-  patient: PatientProfile;
-  medicalData: PatientMedicalData;
-}
 
 export default function DoctorDashboardPage() {
-  const { user, profile } = useAuth();
+  const { profile } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [searchResult, setSearchResult] = useState<PatientSearchResult | null>(null);
   // Top action modals
   const [isCreatePatientOpen, setIsCreatePatientOpen] = useState(false);
-  const [isNovaEntradaOpen, setIsNovaEntradaOpen] = useState(false);
-  const [processingResult, setProcessingResult] = useState<any>(null);
 
   // Doctor patients table
   const [patients, setPatients] = useState<PatientProfile[]>([]);
@@ -69,14 +50,6 @@ export default function DoctorDashboardPage() {
     }
   }, [profile, router]);
 
-  const handlePatientFound = (result: PatientSearchResult) => {
-    setSearchResult(result);
-  };
-
-  const handleNewSearch = () => {
-    setSearchResult(null);
-  };
-
   const handlePatientCreated = (patient: any) => {
     // Optimistically add to table top
     setPatients((prev) => [
@@ -92,14 +65,6 @@ export default function DoctorDashboardPage() {
     ]);
   };
 
-  const handleNovaEntradaSubmit = (data: { category: string; content: string }) => {
-    console.log('Nova entrada submitted:', data);
-  };
-
-  const handleProcessingComplete = (result: any) => {
-    setProcessingResult(result);
-    console.log('Processing completed:', result);
-  };
 
   // Load patients created by this doctor
   useEffect(() => {
@@ -173,31 +138,31 @@ export default function DoctorDashboardPage() {
         {/* Top Actions */}
         <div className="flex flex-wrap gap-3">
           <Button
+            variant="primary"
+            onClick={() => router.push('/doctor/prontodoc-rcr30')}
+            className="flex items-center gap-2"
+          >
+            <span>📋</span>
+            <span>Nova Consulta</span>
+          </Button>
+          <Button
             variant="secondary"
+            onClick={() => router.push('/doctor/formatos-anamnese')}
+            className="flex items-center gap-2"
+          >
+            <span>✏️</span>
+            <span>Edite o formato da sua anamnese</span>
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => setIsCreatePatientOpen(true)}
             className="flex items-center gap-2"
           >
             <span>👤</span>
             <span>Criar Paciente</span>
           </Button>
-          <Button
-            variant="primary"
-            onClick={() => setIsNovaEntradaOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <span>➕</span>
-            <span>Nova Entrada Médica</span>
-          </Button>
         </div>
 
-        {/* Buscar Paciente - moved up */}
-        <div className=" rounded-lg ">
-      
-          <PatientSearch 
-            onPatientFound={handlePatientFound}
-            onClear={handleNewSearch}
-          />
-        </div>
         
         {/* Tabela de Pacientes do Médico */}
         <div className=" rounded-lg   p-2">
@@ -234,31 +199,12 @@ export default function DoctorDashboardPage() {
           )}
         </div>
 
-        {/* Patient Display Section */}
-        {searchResult && (
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
-            <h2 className="text-xl font-semibold text-slate-800 mb-4">
-              📋 Dados do Paciente
-            </h2>
-            <PatientDisplay 
-              patient={searchResult.patient}
-              medicalData={searchResult.medicalData}
-              onNewSearch={handleNewSearch}
-            />
-          </div>
-        )}
 
         {/* Modals */}
         <CreatePatientModal
           open={isCreatePatientOpen}
           onClose={() => setIsCreatePatientOpen(false)}
           onPatientCreated={handlePatientCreated}
-        />
-        <NovaEntradaModal
-          open={isNovaEntradaOpen}
-          onClose={() => setIsNovaEntradaOpen(false)}
-          onSubmit={handleNovaEntradaSubmit}
-          onProcessingComplete={handleProcessingComplete}
         />
       </div>
     </DashboardLayout>

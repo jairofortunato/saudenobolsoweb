@@ -127,9 +127,14 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     const isDoctor = profile?.role === 'doctor';
 
     const patientNavItems = [
-      { 
-        href: '/medications', 
-        label: 'Medicamentos', 
+      {
+        href: '/dashboard',
+        label: 'Resumo Médico',
+        icon: <IconHome />,
+      },
+      {
+        href: '/medications',
+        label: 'Medicamentos',
         icon: <IconPill />,
       },
       { 
@@ -155,14 +160,19 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     ];
 
     const doctorNavItems = [
-      { 
-        href: '/doctor/prontodoc-rcr30', 
-        label: 'Nova Consulta', 
+      {
+        href: '/doctor/patients',
+        label: 'Meus Pacientes',
+        icon: <IconUsers />,
+      },
+      {
+        href: '/doctor/prontodoc-rcr30',
+        label: 'Nova Consulta',
         icon: <IconFileText />,
       },
-      { 
-        href: '/doctor/formatos-anamnese', 
-        label: 'Formatos de Anamnese', 
+      {
+        href: '/doctor/formatos-anamnese',
+        label: 'Formatos de Anamnese',
         icon: <IconTemplate />,
       },
     ];

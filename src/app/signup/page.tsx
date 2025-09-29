@@ -35,20 +35,25 @@ interface FormErrors {
   [key: string]: string;
 }
 
-// Hidden patient signup mode - can be enabled by adding ?mode=patient to URL
-const ENABLE_PATIENT_SIGNUP = false; // Set to true to show patient fields
+// Enable patient signup mode
+const ENABLE_PATIENT_SIGNUP = true; // Allow patients to create accounts
 
 export default function SignupPage() {
   const router = useRouter();
   const { signUp, loading, error: authError, user } = useAuth();
   
-  // Check URL params for patient mode (hidden feature)
-  const [isPatientMode] = useState(() => {
+  // Check URL params for patient mode or default to patient mode
+  const [isPatientMode, setIsPatientMode] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      return params.get('mode') === 'patient' && ENABLE_PATIENT_SIGNUP;
+      if (params.get('mode') === 'doctor') {
+        return false; // Doctor mode
+      }
+      if (params.get('mode') === 'patient') {
+        return true; // Patient mode
+      }
     }
-    return false;
+    return true; // Default to patient mode when ENABLE_PATIENT_SIGNUP is true
   });
   
   const [formData, setFormData] = useState<FormData>({
@@ -57,7 +62,7 @@ export default function SignupPage() {
     confirmPassword: '',
     cpf: '',
     pin: '',
-    role: isPatientMode ? '' : 'doctor', // Default to doctor for simplified UI
+    role: isPatientMode ? 'patient' : 'doctor', // Set role based on mode
     fullName: ''
   });
   
@@ -232,12 +237,38 @@ export default function SignupPage() {
           <h1 className="text-4xl font-bold text-slate-800 mb-2">
             {isPatientMode ? 'Criar Conta - Paciente' : 'Criar Conta - Médico'}
           </h1>
-          <p className="text-slate-600">
-            {isPatientMode 
+          <p className="text-slate-600 mb-4">
+            {isPatientMode
               ? 'Cadastre-se como paciente no Saúde no Bolso'
               : 'Cadastre-se como médico no ProntoDoc'
             }
           </p>
+
+          {/* Mode Toggle */}
+          <div className="flex items-center justify-center gap-4 mt-4">
+            <Button
+              type="button"
+              variant={isPatientMode ? "primary" : "outline"}
+              onClick={() => {
+                setIsPatientMode(true);
+                setFormData(prev => ({ ...prev, role: 'patient' }));
+              }}
+              size="sm"
+            >
+              👤 Paciente
+            </Button>
+            <Button
+              type="button"
+              variant={!isPatientMode ? "primary" : "outline"}
+              onClick={() => {
+                setIsPatientMode(false);
+                setFormData(prev => ({ ...prev, role: 'doctor' }));
+              }}
+              size="sm"
+            >
+              👨‍⚕️ Médico
+            </Button>
+          </div>
         </div>
 
         <Card>

@@ -11,8 +11,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Stores user information for both patients and doctors
 -- =====================================================
 CREATE TABLE profiles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    profile_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     email VARCHAR(255) NOT NULL UNIQUE,
     cpf VARCHAR(14) NOT NULL UNIQUE, -- Format: 000.000.000-00
     pin VARCHAR(6) NOT NULL, -- 6-digit PIN for emergency access
@@ -23,6 +23,8 @@ CREATE TABLE profiles (
     address TEXT,
     emergency_contact_name VARCHAR(255),
     emergency_contact_phone VARCHAR(20),
+    created_by UUID REFERENCES profiles(profile_id), -- Doctor who created this patient profile
+    linked BOOLEAN DEFAULT false, -- Whether profile is linked to a user account
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -450,8 +452,84 @@ CREATE TRIGGER update_exams_updated_at BEFORE UPDATE ON exams
 CREATE TRIGGER update_diseases_updated_at BEFORE UPDATE ON diseases 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_consultations_updated_at BEFORE UPDATE ON consultations 
+CREATE TRIGGER update_consultations_updated_at BEFORE UPDATE ON consultations
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- =====================================================
+-- PROFILE LINKING TRIGGER FOR USER SIGNUP
+-- Automatically creates or links profiles when users sign up
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION handle_new_user_signup()
+RETURNS TRIGGER AS $$
+DECLARE
+    user_cpf TEXT;
+    user_pin TEXT;
+    user_role TEXT;
+    user_name TEXT;
+    existing_profile_count INTEGER;
+BEGIN
+    -- Get user metadata
+    user_cpf := NEW.raw_user_meta_data->>'cpf';
+    user_pin := NEW.raw_user_meta_data->>'pin';
+    user_role := NEW.raw_user_meta_data->>'role';
+    user_name := NEW.raw_user_meta_data->>'full_name';
+
+    -- Only proceed if we have the required data
+    IF user_cpf IS NOT NULL AND user_pin IS NOT NULL AND user_role IS NOT NULL THEN
+
+        -- Check if a doctor-created profile already exists
+        SELECT COUNT(*) INTO existing_profile_count
+        FROM profiles
+        WHERE cpf = user_cpf
+        AND pin = user_pin
+        AND role = user_role
+        AND user_id IS NULL;
+
+        IF existing_profile_count > 0 THEN
+            -- Link to existing doctor-created profile
+            UPDATE profiles
+            SET user_id = NEW.id,
+                email = NEW.email,
+                linked = true,
+                updated_at = NOW()
+            WHERE cpf = user_cpf
+            AND pin = user_pin
+            AND role = user_role
+            AND user_id IS NULL;
+        ELSE
+            -- Create new profile
+            INSERT INTO profiles (
+                user_id,
+                email,
+                cpf,
+                pin,
+                role,
+                full_name,
+                linked
+            ) VALUES (
+                NEW.id,
+                NEW.email,
+                user_cpf,
+                user_pin,
+                user_role,
+                COALESCE(user_name, NEW.email),
+                true
+            );
+        END IF;
+    END IF;
+
+    RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+    -- Don't block user creation if profile creation fails
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create the trigger
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION handle_new_user_signup();
 
 -- =====================================================
 -- END OF SCHEMA
