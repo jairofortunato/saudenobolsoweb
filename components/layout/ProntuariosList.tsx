@@ -10,6 +10,7 @@ interface Prontuario {
   created_at: string;
   title: string | null;
   patient_name: string | null;
+  patient_id: string | null;
   template_name: string | null;
   specialty: string | null;
   meta: {
@@ -91,32 +92,39 @@ export function ProntuariosList({ collapsed = false }: ProntuariosListProps) {
 
   return (
     <div className="space-y-1">
-      {prontuarios.slice(0, collapsed ? 3 : 10).map((prontuario) => (
-        <Link
-          key={prontuario.id}
-          href={`/prontuarios/${prontuario.id}`}
-          className={cn(
-            "block p-2 rounded-lg text-xs text-slate-600 hover:text-slate-800 hover:bg-slate-100 transition-colors duration-200",
-            collapsed && "text-center"
-          )}
-          title={collapsed ? (prontuario.meta?.title || prontuario.summary || 'Prontuário') : undefined}
-        >
+      {prontuarios.slice(0, collapsed ? 3 : 10).map((prontuario) => {
+        // Link to patient page if patient exists, otherwise to prontuario page
+        const linkHref = prontuario.patient_id
+          ? `/doctor/patients/${prontuario.patient_id}`
+          : `/prontuarios/${prontuario.id}`;
+
+        return (
+          <Link
+            key={prontuario.id}
+            href={linkHref}
+            className={cn(
+              "block p-2 rounded-lg text-xs text-slate-600 hover:text-slate-800 hover:bg-slate-100 transition-colors duration-200",
+              collapsed && "text-center"
+            )}
+            title={collapsed ? (prontuario.meta?.title || prontuario.summary || 'Prontuário') : undefined}
+          >
           {collapsed ? (
             <div className="w-6 h-6 rounded-full bg-slate-300 flex items-center justify-center text-xs font-bold text-slate-600">
               {(prontuario.meta?.patient_name || prontuario.patient_name)?.charAt(0) || 'P'}
             </div>
           ) : (
-            <div>
-              <p className="font-medium truncate">{prontuario.meta?.title || prontuario.title || prontuario.summary || 'Prontuário'}</p>
-              <p className="text-slate-500 text-xs truncate">
-                {prontuario.meta?.patient_name || prontuario.patient_name || 'Paciente não informado'} • {new Date(prontuario.created_at).toLocaleDateString('pt-BR')}
-              </p>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-slate-500 text-xs">
+                {new Date(prontuario.created_at).toLocaleDateString('pt-BR')}
+              </span>
+              <span className="font-medium truncate">
+                {prontuario.meta?.patient_name || prontuario.patient_name || 'Sem paciente'}
+              </span>
             </div>
           )}
-        </Link>
-      ))}
-      
-      
+          </Link>
+        );
+      })}
     </div>
   );
 }

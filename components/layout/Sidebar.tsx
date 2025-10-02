@@ -161,18 +161,23 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
 
     const doctorNavItems = [
       {
-        href: '/doctor/patients',
-        label: 'Meus Pacientes',
-        icon: <IconUsers />,
-      },
-      {
         href: '/doctor/prontodoc-rcr30',
         label: 'Nova Consulta',
         icon: <IconFileText />,
       },
       {
-        href: '/doctor/formatos-anamnese',
-        label: 'Formatos de Anamnese',
+        href: '/prontuarios',
+        label: 'Prontuários',
+        icon: <IconHospital />,
+      },
+      {
+        href: '/doctor/patients',
+        label: 'Meus Pacientes',
+        icon: <IconUsers />,
+      },
+      {
+        href: '/doctor/templates-prontuario',
+        label: 'Templates Prontuário',
         icon: <IconTemplate />,
       },
     ];
@@ -224,7 +229,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
+        <nav className="px-3 py-4 space-y-2">
           {navigationItems.map((item) => {
             const isActive = pathname === item.href;
             
@@ -261,16 +266,20 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
 
         {/* Prontuários Section - Only for doctors */}
         {isDoctor && (
-          <div className="px-3 py-4 border-t border-slate-200">
-            <div className={cn("flex items-center justify-between mb-3", isCollapsed && "justify-center")}>
-              {!isCollapsed && (
-                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Consultas Recentes
-                </h3>
-              )}
+          <div className="flex-1 flex flex-col border-t border-slate-200 overflow-hidden">
+            <div className="px-3 pt-4 pb-3 flex-shrink-0">
+              <div className={cn("flex items-center justify-between", isCollapsed && "justify-center")}>
+                {!isCollapsed && (
+                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Consultas Recentes
+                  </h3>
+                )}
+              </div>
             </div>
-            
-            <ProntuariosList collapsed={isCollapsed} />
+
+            <div className="px-3 pb-4 overflow-y-auto flex-1">
+              <ProntuariosList collapsed={isCollapsed} />
+            </div>
           </div>
         )}
 

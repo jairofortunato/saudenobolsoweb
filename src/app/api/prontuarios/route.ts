@@ -90,7 +90,8 @@ export async function GET(request: Request) {
         title,
         patient_name,
         template_name,
-        specialty
+        specialty,
+        patient_id
       `)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
@@ -110,8 +111,29 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    console.log('✅ [PRONTUARIOS API] GET successful, found', data?.length || 0, 'prontuários');
-    return NextResponse.json({ prontuarios: data })
+    // For each prontuario, if it has a patient_name but no patient_id, look it up
+    const enrichedData = await Promise.all((data || []).map(async (prontuario) => {
+      if (prontuario.patient_name && !prontuario.patient_id) {
+        try {
+          const { data: patientData } = await supabase!
+            .from('profiles')
+            .select('profile_id')
+            .eq('full_name', prontuario.patient_name)
+            .eq('role', 'patient')
+            .maybeSingle();
+
+          if (patientData) {
+            return { ...prontuario, patient_id: patientData.profile_id };
+          }
+        } catch (err) {
+          console.error('Error looking up patient:', err);
+        }
+      }
+      return prontuario;
+    }));
+
+    console.log('✅ [PRONTUARIOS API] GET successful, found', enrichedData?.length || 0, 'prontuários');
+    return NextResponse.json({ prontuarios: enrichedData })
     
   } catch (err) {
     console.error('❌ [PRONTUARIOS API] Unexpected error in GET:', err);
@@ -213,6 +235,19 @@ export async function POST(request: Request) {
       console.log('⚠️ [PRONTUARIOS API] Profile lookup error:', profileErr);
     }
 
+    // Validate patient_id is a valid UUID or set to null
+    // Temporary IDs (like "temp-1759260431088") should be stored as null
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const validPatientId = body.patient_id && uuidRegex.test(body.patient_id)
+      ? body.patient_id
+      : null;
+
+    console.log('🔍 [PRONTUARIOS API] Patient ID validation:', {
+      provided: body.patient_id,
+      isValid: validPatientId !== null,
+      willUse: validPatientId
+    });
+
     // Prepare data for insertion with required fields matching actual schema
     const insertData = {
       content: body.content || '',
@@ -222,7 +257,7 @@ export async function POST(request: Request) {
       version: 1,
       // New columns from our migration
       title: body.title || null,
-      patient_id: body.patient_id || null, // Allow null for cases without patient
+      patient_id: validPatientId, // Only use valid UUIDs, null for temporary patients
       created_by: userProfileId, // Use profile_id instead of user_id
       patient_name: body.patient_name || null,
       template_name: body.template_name || null,
@@ -233,7 +268,7 @@ export async function POST(request: Request) {
         patient_name: body.patient_name,
         template_name: body.template_name,
         specialty: body.specialty,
-        patient_id: body.patient_id,
+        patient_id: body.patient_id, // Store original ID in meta for reference
         created_by: userProfileId,
         ...body.meta
       }

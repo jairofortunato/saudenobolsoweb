@@ -13,6 +13,7 @@ import {
 } from '../../../../components';
 import { PatientSearch } from '../../../../components/doctor/PatientSearch';
 import { PatientDisplay } from '../../../../components/doctor/PatientDisplay';
+import { NovaEntradaModal } from '../../../../components/ui/NovaEntradaModal';
 import { getDisplayName } from '../../../../lib/auth-utils';
 import { Medication, Allergy, Exam, Disease, Consultation } from '../../../../types/database';
 import { createClient } from '../../../../lib/supabase';
@@ -56,6 +57,9 @@ export default function DoctorPatientsPage() {
   const [patientsLoading, setPatientsLoading] = useState<boolean>(true);
   const [patientsError, setPatientsError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Nova Entrada Modal state
+  const [isNovaEntradaOpen, setIsNovaEntradaOpen] = useState(false);
 
   // Filtered patients based on search
   const filteredPatients = patients.filter(patient =>
@@ -189,38 +193,8 @@ export default function DoctorPatientsPage() {
     <DashboardLayout
       title="Meus Pacientes"
       subtitle={`Dr. ${getDisplayName(profile)}`}
-      breadcrumbs={[
-        { label: 'Dashboard Médico', href: '/doctor/dashboard' },
-        { label: 'Pacientes' }
-      ]}
     >
       <div className="space-y-6">
-        {/* Top Actions */}
-        <div className="flex flex-wrap gap-3 justify-between items-center">
-          <Button
-            variant="primary"
-            onClick={() => setIsCreatePatientOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <span>👤</span>
-            <span>Criar Novo Paciente</span>
-          </Button>
-
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-600">
-              Total: {patients.length} paciente{patients.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-        </div>
-
-        {/* Patient Search */}
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold text-slate-800 mb-4">🔍 Buscar Paciente por PIN</h2>
-          <PatientSearch
-            onPatientFound={handlePatientFound}
-            onClear={handleNewSearch}
-          />
-        </Card>
 
         {/* Patient Search Results */}
         {searchResult && (
@@ -248,9 +222,6 @@ export default function DoctorPatientsPage() {
         {/* Patients Table */}
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-slate-800">
-              👥 Meus Pacientes Cadastrados
-            </h2>
             <div className="w-80">
               <Input
                 type="text"
@@ -309,14 +280,15 @@ export default function DoctorPatientsPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Cadastrado em
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
-                      Ações
-                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-100">
                   {filteredPatients.map((patient) => (
-                    <tr key={patient.id} className="hover:bg-slate-50">
+                    <tr
+                      key={patient.id}
+                      className="hover:bg-slate-50 cursor-pointer"
+                      onClick={() => router.push(`/doctor/patients/${patient.id}`)}
+                    >
                       <td className="px-6 py-4">
                         <div>
                           <div className="text-sm font-medium text-slate-900">
@@ -344,17 +316,6 @@ export default function DoctorPatientsPage() {
                       <td className="px-6 py-4 text-sm text-slate-500">
                         {new Date(patient.created_at).toLocaleDateString('pt-BR')}
                       </td>
-                      <td className="px-6 py-4 text-right text-sm font-medium">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleViewPatient(patient)}
-                          className="inline-flex items-center gap-1"
-                        >
-                          <span>👁️</span>
-                          Ver Dados
-                        </Button>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -368,6 +329,23 @@ export default function DoctorPatientsPage() {
           open={isCreatePatientOpen}
           onClose={() => setIsCreatePatientOpen(false)}
           onPatientCreated={handlePatientCreated}
+        />
+
+        {/* Nova Entrada Modal */}
+        <NovaEntradaModal
+          open={isNovaEntradaOpen}
+          onClose={() => setIsNovaEntradaOpen(false)}
+          onSubmit={(data) => {
+            console.log('Nova entrada submitted:', data);
+          }}
+          onProcessingComplete={(result) => {
+            console.log('Processing complete:', result);
+            // Refresh patient data if a patient was selected
+            if (searchResult) {
+              // Reload medical data for the current patient
+              handleViewPatient(searchResult.patient);
+            }
+          }}
         />
       </div>
     </DashboardLayout>

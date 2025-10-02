@@ -110,53 +110,7 @@ export function RecordingControls({
 
   return (
     <div className={className}>
-      {/* Title and Status */}
-      <div className="mb-6">
-        
-        {/* Status and Duration Row */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            {/* Recording Indicator */}
-            <div className={`w-3 h-3 rounded-full ${
-              workflowState === 'completed'
-                ? 'bg-green-500'
-                : isRecording 
-                  ? 'bg-red-500 animate-pulse' 
-                  : isPaused 
-                    ? 'bg-yellow-400' 
-                    : showSetupState
-                      ? 'bg-black animate-pulse'
-                      : 'bg-gray-400'
-            }`} />
-            
-            {/* Status Text */}
-            <span className="text-gray-700 font-medium">
-              {workflowState === 'completed' 
-                ? 'Concluído' 
-                : isRecording 
-                  ? 'Gravando' 
-                  : isPaused 
-                    ? 'Pausado' 
-                    : showSetupState 
-                      ? 'Clique para Iniciar' 
-                      : 'Pronto'}
-            </span>
-          </div>
-
-          {/* Duration */}
-          <div className="text-2xl font-mono text-gray-900 font-semibold">
-            {formatDuration(duration)}
-          </div>
-        </div>
-
-        {/* Recording Stats */}
-        {(isRecording || isPaused || duration > 0) && (
-          <div className="flex justify-between text-sm text-gray-500 mt-2">
-            <span>Chunks: {chunks}</span>
-            <span>Tamanho: {formatSize(size)}</span>
-          </div>
-        )}
-      </div>
+      {/* Title and Status - Hidden during recording */}
 
       {/* Audio Visualizer Container */}
       <div className="relative w-full h-40 md:h-48 mb-6">
@@ -287,14 +241,6 @@ export function RecordingControls({
         </div>
       </div>
 
-      {/* Help Text */}
-      <div className="text-center text-sm text-gray-600">
-        {workflowState === 'completed' && 'Gravação processada com sucesso! Confira os resultados abaixo.'}
-        {workflowState === 'processing_upload' && 'Processando gravação... Aguarde'}
-        {workflowState !== 'processing_upload' && workflowState !== 'completed' && !isRecording && !isPaused && 'Clique no microfone para iniciar a gravação'}
-        {workflowState !== 'processing_upload' && workflowState !== 'completed' && isRecording && 'Gravação em andamento... Clique na pausa para pausar ou no quadrado para terminar'}
-        {workflowState !== 'processing_upload' && workflowState !== 'completed' && isPaused && 'Gravação pausada. Clique no play para continuar ou no quadrado para terminar'}
-      </div>
     </div>
   );
 }

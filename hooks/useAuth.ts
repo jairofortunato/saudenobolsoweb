@@ -47,13 +47,19 @@ export function useAuthState(): AuthContextType {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
         console.log('🔧 useAuth: Session result:', { session: session?.user?.email, error })
-        
+
+        // Ignore refresh token errors - just treat as no session
         if (error) {
+          if (error.message?.includes('refresh_token_not_found') || error.message?.includes('Invalid Refresh Token')) {
+            console.log('ℹ️ useAuth: No valid session (refresh token not found)')
+            setState({ user: null, session: null, profile: null, loading: false, error: null })
+            return
+          }
           console.error('❌ useAuth: Error getting session:', error)
           setState({ user: null, session: null, profile: null, loading: false, error: error.message })
           return
         }
-        
+
         if (session?.user) {
           console.log('🔧 useAuth: User found, setting state immediately')
           // Set user immediately - don't wait for profile
@@ -64,14 +70,20 @@ export function useAuthState(): AuthContextType {
             loading: false, // ✅ STOP LOADING IMMEDIATELY
             error: null
           })
-          
+
           // Fetch profile in background - don't block UI
           fetchUserProfileInBackground(session.user.id)
         } else {
           console.log('🔧 useAuth: No user session')
           setState({ user: null, session: null, profile: null, loading: false, error: null })
         }
-      } catch (error) {
+      } catch (error: any) {
+        // Catch refresh token errors and treat as no session
+        if (error?.message?.includes('refresh_token_not_found') || error?.message?.includes('Invalid Refresh Token')) {
+          console.log('ℹ️ useAuth: No valid session (caught refresh token error)')
+          setState({ user: null, session: null, profile: null, loading: false, error: null })
+          return
+        }
         console.error('❌ useAuth: Error in getInitialSession:', error)
         setState({ user: null, session: null, profile: null, loading: false, error: 'Erro de conexão' })
       }
@@ -84,22 +96,32 @@ export function useAuthState(): AuthContextType {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔧 useAuth: Auth state changed:', event, session?.user?.email)
-        
-        if (session?.user) {
-          console.log('🔧 useAuth: Auth change - user found, setting state immediately')
-          setState({
-            user: session.user,
-            session,
-            profile: null, // Will be loaded separately
-            loading: false, // ✅ STOP LOADING IMMEDIATELY
-            error: null
-          })
-          
-          // Fetch profile in background
-          fetchUserProfileInBackground(session.user.id)
-        } else {
-          console.log('🔧 useAuth: Auth change - no user')
-          setState({ user: null, session: null, profile: null, loading: false, error: null })
+
+        try {
+          if (session?.user) {
+            console.log('🔧 useAuth: Auth change - user found, setting state immediately')
+            setState({
+              user: session.user,
+              session,
+              profile: null, // Will be loaded separately
+              loading: false, // ✅ STOP LOADING IMMEDIATELY
+              error: null
+            })
+
+            // Fetch profile in background
+            fetchUserProfileInBackground(session.user.id)
+          } else {
+            console.log('🔧 useAuth: Auth change - no user')
+            setState({ user: null, session: null, profile: null, loading: false, error: null })
+          }
+        } catch (error: any) {
+          // Ignore refresh token errors in auth state change
+          if (error?.message?.includes('refresh_token_not_found') || error?.message?.includes('Invalid Refresh Token')) {
+            console.log('ℹ️ useAuth: Auth state change - ignoring refresh token error')
+            setState({ user: null, session: null, profile: null, loading: false, error: null })
+          } else {
+            console.error('❌ useAuth: Auth state change error:', error)
+          }
         }
       }
     )

@@ -13,6 +13,7 @@ interface SimpleProntuarioProps {
   templateId?: string;
   templateName?: string;
   specialty?: string;
+  autoSaved?: boolean; // If true, hide save button and show "Auto-saved" message
   onSaved?: (prontuarioId: string) => void;
 }
 
@@ -26,20 +27,33 @@ export function SimpleProntuario({
   templateId,
   templateName,
   specialty,
+  autoSaved = false,
   onSaved
 }: SimpleProntuarioProps) {
   const { user } = useAuth();
-  const [editableText, setEditableText] = useState(() => {
+
+  // Extract initial text
+  const getInitialText = () => {
     if (typeof prontuario === 'string') {
       return prontuario;
     }
-    return prontuario?.prontuario_text || JSON.stringify(prontuario, null, 2);
-  });
-  
-  // New state for auto-save functionality
+    return prontuario?.prontuario_text || prontuario?.content || prontuario?.text || JSON.stringify(prontuario, null, 2);
+  };
+
+  const [originalText] = useState(getInitialText());
+  const [editableText, setEditableText] = useState(getInitialText());
+
+  // New state for edit tracking and save functionality
   const [title, setTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Track changes to textarea
+  const handleTextChange = (newText: string) => {
+    setEditableText(newText);
+    setHasUnsavedChanges(newText !== originalText);
+  };
 
   // Generate title from first line of content
   const generateTitle = useCallback((content: string) => {
@@ -100,6 +114,7 @@ export function SimpleProntuario({
       if (response.ok) {
         const data = await response.json();
         setSavedId(data.prontuario.id);
+        setHasUnsavedChanges(false); // Reset unsaved changes flag
         onSaved?.(data.prontuario.id);
       } else {
         console.error('Failed to save prontuário:', response.statusText);
@@ -126,11 +141,17 @@ export function SimpleProntuario({
       <div className="flex items-center justify-between mb-6">
         <div className="flex-1">
           <h2 className="text-3xl font-bold text-gray-900 text-center">Prontuário</h2>
-          {savedId && (
+          {autoSaved && !hasUnsavedChanges && (
+            <p className="text-sm text-green-600 mt-1 text-center">✅ Salvo automaticamente</p>
+          )}
+          {hasUnsavedChanges && (
+            <p className="text-sm text-yellow-600 mt-1 text-center">⚠️ Alterações não salvas</p>
+          )}
+          {!autoSaved && !hasUnsavedChanges && savedId && (
             <p className="text-sm text-green-600 mt-1 text-center">✅ Salvo com sucesso</p>
           )}
         </div>
-        
+
         {/* Action buttons */}
         <div className="flex gap-2">
           <button
@@ -139,22 +160,22 @@ export function SimpleProntuario({
           >
             📋 Copiar
           </button>
-          
-          {/* Save button - only show if we have the required data and haven't saved yet */}
-          {appointmentId && !savedId && (
+
+          {/* Save button - show when there are unsaved changes (from RCR-30 auto-save) OR manual creation */}
+          {((autoSaved && hasUnsavedChanges) || (!autoSaved && appointmentId && !savedId)) && (
             <button
               onClick={handleSave}
               disabled={isSaving}
               className="px-4 py-2 text-sm text-white bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 rounded-lg transition-colors duration-200"
             >
-              {isSaving ? '⏳ Salvando...' : '💾 Salvar Prontuário'}
+              {isSaving ? '⏳ Salvando...' : hasUnsavedChanges ? '💾 Salvar Edições' : '💾 Salvar Prontuário'}
             </button>
           )}
         </div>
       </div>
 
-      {/* Title input - only show if we have save capability and haven't saved yet */}
-      {appointmentId && !savedId && (
+      {/* Title input - only show when saving manually (not for edits after auto-save) */}
+      {!autoSaved && appointmentId && !savedId && !hasUnsavedChanges && (
         <div className="mb-4">
           <input
             type="text"
@@ -171,7 +192,7 @@ export function SimpleProntuario({
         <textarea
           className="w-full h-[600px] p-3 text-black bg-white border border-gray-300 resize-none focus:outline-none font-mono text-base"
           value={editableText}
-          onChange={(e) => setEditableText(e.target.value)}
+          onChange={(e) => handleTextChange(e.target.value)}
           readOnly={!!savedId}
           placeholder="Prontuário will appear here..."
         />

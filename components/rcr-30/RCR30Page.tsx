@@ -81,6 +81,13 @@ interface ConsultationTemplate {
 }
 
 export function RCR30Page() {
+  // Helper function to format duration
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   // Workflow state
   const [workflowState, setWorkflowState] = useState<WorkflowState>('setup');
   const [currentAppointmentId, setCurrentAppointmentId] = useState<string | null>(null);
@@ -89,10 +96,10 @@ export function RCR30Page() {
   const [patientMedicalData, setPatientMedicalData] = useState<any>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<ConsultationTemplate | null>(null);
   const [error, setError] = useState<RCR30Error | null>(null);
-  
+
   // Completed prontuario data
   const [completedProntuario, setCompletedProntuario] = useState<any | null>(null);
-  
+
   // Track when backend has results ready (even if upload API is still running)
   const [backendResultsReady, setBackendResultsReady] = useState<boolean>(false);
   const [pendingResults, setPendingResults] = useState<{transcript?: string, prontuario?: any} | null>(null);
@@ -189,11 +196,247 @@ export function RCR30Page() {
     };
   }, [wakeLock, workflowState, requestWakeLock]);
 
+  /**
+   * =====================================
+   * BACKGROUND AI PROCESSING
+   * =====================================
+   *
+   * Silently extracts structured medical data from the generated prontuário
+   * and stores it in the patient's medical records without blocking the UI.
+   *
+   * Processing happens AFTER prontuário is displayed to user.
+   * Only console logs are shown - no UI changes.
+   *
+   * Extracts and stores:
+   * - Medications (name, dosage, frequency)
+   * - Allergies (name, severity, reaction)
+   * - Diseases (name, diagnosis date, chronic status)
+   * - Exams (name, date, results)
+   * - Consultations (summary, diagnosis, treatment)
+   */
+  const triggerBackgroundProcessing = useCallback(async (prontuarioText: string) => {
+    console.log('🎯 [BACKGROUND AI] triggerBackgroundProcessing called');
+    console.log('👤 [BACKGROUND AI] selectedPatientProfile:', selectedPatientProfile);
+    console.log('📄 [BACKGROUND AI] prontuarioText type:', typeof prontuarioText);
+
+    // Only process if we have a patient selected
+    if (!selectedPatientProfile?.id) {
+      console.log('⏭️ [BACKGROUND AI] Skipping - no patient selected');
+      return;
+    }
+
+    // Skip if patient ID is temporary (not yet created in database)
+    if (selectedPatientProfile.id.startsWith('temp-')) {
+      console.log('⏭️ [BACKGROUND AI] Skipping - temporary patient ID:', selectedPatientProfile.id);
+      return;
+    }
+
+    console.log('🔄 [BACKGROUND AI] Starting background processing...');
+
+    // Extract text content if prontuarioText is an object
+    let textContent = '';
+    if (typeof prontuarioText === 'string') {
+      textContent = prontuarioText;
+    } else if (typeof prontuarioText === 'object' && prontuarioText !== null) {
+      // Try to extract text from common prontuário object structures
+      const prontuarioObj = prontuarioText as any;
+      textContent = prontuarioObj.prontuario_text ||
+                   prontuarioObj.content ||
+                   prontuarioObj.text ||
+                   JSON.stringify(prontuarioText);
+    }
+
+    console.log('📝 [BACKGROUND AI] Extracted text content length:', textContent.length);
+    console.log('👤 [BACKGROUND AI] Patient ID:', selectedPatientProfile.id);
+    console.log('📄 [BACKGROUND AI] Text preview:', textContent.substring(0, 200) + '...');
+    console.log('🌐 [BACKGROUND AI] AI Processor URL:', process.env.NEXT_PUBLIC_AI_PROCESSOR_URL);
+
+    try {
+      // Validate we have the required data
+      if (!textContent || textContent.trim().length === 0) {
+        console.error('❌ [BACKGROUND AI] No text content to process');
+        return;
+      }
+
+      // Check if AI processor URL is configured
+      const aiProcessorUrl = process.env.NEXT_PUBLIC_AI_PROCESSOR_URL;
+      if (!aiProcessorUrl) {
+        console.error('❌ [BACKGROUND AI] AI Processor URL not configured (NEXT_PUBLIC_AI_PROCESSOR_URL)');
+        return;
+      }
+
+      // Call the AI processor backend
+      console.log('📡 [BACKGROUND AI] Making fetch request to AI processor...');
+      console.log('📡 [BACKGROUND AI] URL:', `${aiProcessorUrl}/api/ai/process`);
+      console.log('📡 [BACKGROUND AI] Patient ID:', selectedPatientProfile.id);
+      console.log('📡 [BACKGROUND AI] Text length:', textContent.length);
+
+      const requestPayload = {
+        text: textContent,
+        patient_id: selectedPatientProfile.id,
+        submit_directly: true, // Store directly in database
+      };
+
+      console.log('📡 [BACKGROUND AI] Request payload:', requestPayload);
+
+      const response = await fetch(`${aiProcessorUrl}/api/ai/process`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Request-Source': 'RCR30-Background-Processing',
+        },
+        body: JSON.stringify(requestPayload),
+      });
+
+      console.log('📡 [BACKGROUND AI] Response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ [BACKGROUND AI] API error:', errorData);
+        throw new Error(errorData.error || 'Failed to process prontuário');
+      }
+
+      const result = await response.json();
+
+      console.log('✅ [BACKGROUND AI] Processing completed successfully');
+      console.log('📊 [BACKGROUND AI] Full result:', result);
+
+      // Parse the response structure: { success, data: { message, classification, extractions, categories_found, entries_created, ... }, ... }
+      const entriesCreated = result.data?.entries_created || 0;
+      const categoriesFound = result.data?.categories_found || 0;
+      const extractions = result.data?.extractions || {};
+      const categoriesProcessed = result.data?.categories || [];
+
+      console.log('📊 [BACKGROUND AI] Results summary:', {
+        categories_found: categoriesFound,
+        categories_processed: categoriesProcessed,
+        entries_created: entriesCreated,
+        success: result.success
+      });
+
+      // Log detailed extraction results
+      if (Object.keys(extractions).length > 0) {
+        console.log('📋 [BACKGROUND AI] Extracted data details:');
+        Object.entries(extractions).forEach(([category, data]: [string, any]) => {
+          const items = data?.items || [];
+          if (Array.isArray(items) && items.length > 0) {
+            console.log(`   ✓ ${category}: ${items.length} item(s) extracted`);
+          }
+        });
+      }
+
+      if (entriesCreated > 0) {
+        console.log(`✅ [BACKGROUND AI] Successfully created ${entriesCreated} medical entries in the database`);
+        console.log(`📂 [BACKGROUND AI] Categories processed: ${categoriesProcessed.join(', ')}`);
+      } else {
+        console.log('ℹ️ [BACKGROUND AI] No medical data was extracted from the prontuário');
+        console.log('   This may be normal if the prontuário contains no medications, allergies, diseases, exams, or consultations');
+      }
+
+    } catch (error) {
+      console.error('❌ [BACKGROUND AI] Processing failed:', error);
+      console.error('❌ [BACKGROUND AI] Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      // Silently fail - user doesn't need to know about background processing errors
+    }
+  }, [selectedPatientProfile]);
+
+  /**
+   * =====================================
+   * AUTO-SAVE PRONTUÁRIO
+   * =====================================
+   *
+   * Automatically saves the prontuário to the database when it's ready.
+   * Runs silently in the background without requiring user interaction.
+   */
+  const autoSaveProntuario = useCallback(async (prontuarioText: string) => {
+    if (!currentAppointmentId) {
+      console.log('⏭️ [AUTO-SAVE] Skipping - no appointment ID');
+      return;
+    }
+
+    console.log('💾 [AUTO-SAVE] Starting automatic prontuário save...');
+
+    try {
+      // Extract text content if prontuarioText is an object
+      let textContent = '';
+      if (typeof prontuarioText === 'string') {
+        textContent = prontuarioText;
+      } else if (typeof prontuarioText === 'object' && prontuarioText !== null) {
+        const prontuarioObj = prontuarioText as any;
+        textContent = prontuarioObj.prontuario_text ||
+                     prontuarioObj.content ||
+                     prontuarioObj.text ||
+                     JSON.stringify(prontuarioText);
+      }
+
+      // Generate title from first line or use default
+      const generateTitle = (content: string) => {
+        const firstLine = content.split('\n')[0].trim();
+        if (firstLine && firstLine.length > 10) {
+          return firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine;
+        }
+        const patientName = selectedPatientProfile?.name || selectedPatient?.name || 'Paciente';
+        return `Prontuário ${patientName} - ${new Date().toLocaleDateString('pt-BR')}`;
+      };
+
+      const title = generateTitle(textContent);
+
+      // Get session for auth
+      const { createClient } = await import('../../lib/supabase');
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        console.error('❌ [AUTO-SAVE] No session token available');
+        return;
+      }
+
+      // Save prontuário
+      const response = await fetch('/api/prontuarios', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          title: title,
+          content: textContent,
+          appointment_id: currentAppointmentId,
+          user_id: session.user.id,
+          patient_id: selectedPatientProfile?.id || null,
+          patient_name: selectedPatientProfile?.name || selectedPatient?.name || null,
+          template_name: selectedTemplate?.name || null,
+          specialty: selectedTemplate?.specialty || null,
+          version: 1,
+          summary: null,
+          meta: {}
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ [AUTO-SAVE] Prontuário saved successfully with ID:', data.prontuario.id);
+      } else {
+        const errorData = await response.json();
+        console.error('❌ [AUTO-SAVE] Failed to save prontuário:', errorData.error);
+      }
+    } catch (error) {
+      console.error('❌ [AUTO-SAVE] Error saving prontuário:', error);
+      // Silently fail - user can still manually save if needed
+    }
+  }, [currentAppointmentId, selectedPatientProfile, selectedPatient, selectedTemplate]);
+
   // Handle patient selection and fetch medical data for existing patients
   const handlePatientSelection = useCallback(async (patient: PatientProfile | null) => {
+    console.log('🔗 [PATIENT SELECTION] Patient selected:', patient?.name, 'during state:', workflowState);
+
     setSelectedPatientProfile(patient);
     setPatientMedicalData(null);
-    
+
     // Also update legacy selectedPatient for backward compatibility
     if (patient) {
       setSelectedPatient({
@@ -222,10 +465,47 @@ export function RCR30Page() {
           console.error('Error fetching patient medical data:', error);
         }
       }
+
+      // 🔄 RETROACTIVE PROCESSING: If patient linked after prontuário is ready
+      if (workflowState === 'completed' && completedProntuario) {
+        console.log('🔄 [RETROACTIVE] Patient linked after prontuário completion - triggering background processing');
+
+        // Trigger background AI processing NOW with the newly linked patient
+        triggerBackgroundProcessing(completedProntuario);
+
+        // Also update the saved prontuário with patient info
+        if (currentAppointmentId) {
+          try {
+            // Get session for auth
+            const { createClient } = await import('../../lib/supabase');
+            const supabase = createClient();
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (session?.access_token) {
+              // Update the prontuário record with patient info
+              await fetch(`/api/prontuarios/${currentAppointmentId}/link-patient`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                  patient_id: patient.id,
+                  patient_name: patient.name,
+                }),
+              });
+
+              console.log('✅ [RETROACTIVE] Prontuário linked to patient successfully');
+            }
+          } catch (error) {
+            console.error('❌ [RETROACTIVE] Failed to link prontuário to patient:', error);
+          }
+        }
+      }
     } else {
       setSelectedPatient(null);
     }
-  }, []);
+  }, [workflowState, completedProntuario, currentAppointmentId, triggerBackgroundProcessing]);
 
   // Recording management
   const {
@@ -521,9 +801,18 @@ export function RCR30Page() {
       
       if (currentStatus.prontuario) {
         setCompletedProntuario(currentStatus.prontuario);
+
+        console.log('🎉 [COMPLETION] Prontuário ready, triggering auto-save and background processing');
+
+        // 💾 AUTO-SAVE - Save prontuário to database automatically
+        autoSaveProntuario(currentStatus.prontuario);
+
+        // 🔄 BACKGROUND AI PROCESSING - Extract structured medical data
+        // This runs silently in the background without blocking the UI
+        triggerBackgroundProcessing(currentStatus.prontuario);
       }
       setWorkflowState('completed');
-      
+
       console.log('✅ [STATUS UPDATE] Results set and workflow completed');
     } else if (currentStatus?.status === 'failed') {
       console.log('❌ [STATUS UPDATE] Processing failed');
@@ -557,43 +846,25 @@ export function RCR30Page() {
         {/* Main Content - Single Column */}
         <div className="max-w-4xl mx-auto">
           <div className="space-y-6">
-            {/* Patient Search and Display Component - ALWAYS VISIBLE */}
-            <PatientSearchAndDisplay 
-              onPatientSelected={handlePatientSelection}
-              disabled={workflowState === 'recording'}
-              className=""
-            />
-
-           
-
-            {/* Template Selection - ALWAYS VISIBLE */}
-            <ConsultationTemplateSelector 
-              onTemplateSelected={setSelectedTemplate}
-              selectedTemplate={selectedTemplate}
-              disabled={workflowState === 'recording'}
-              className="mb-6"
-            />
-
             {/* Recording Section - ALWAYS VISIBLE */}
             <div className="">
-              <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">
-                Escutar consulta
+              <h2 className="text-3xl mt-12 font-bold text-gray-900 mb-6 text-center">
+                Escutar Consulta
               </h2>
-              
-              {/* Selected Info Summary */}
-              {(selectedTemplate || selectedPatientProfile) && (
-                <div className="">
-                 
-                  {selectedPatientProfile && (
-                    <p className="text-sm text-blue-700 mt-1">
-                      <strong>Paciente:</strong> {selectedPatientProfile.name} 
-                      <span className="ml-1">
-                        {selectedPatientProfile.isExisting ? '(Existente)' : '(Novo)'}
-                      </span>
-                    </p>
-                  )}
+
+              {/* Template Selection and Timer Row */}
+              <div className="flex items-center justify-between mb-6">
+                <ConsultationTemplateSelector
+                  onTemplateSelected={setSelectedTemplate}
+                  selectedTemplate={selectedTemplate}
+                  disabled={workflowState === 'recording'}
+                />
+                <div className="text-right">
+                  <div className="text-4xl font-mono font-bold text-gray-900">
+                    {formatDuration(recordingStatus.duration)}
+                  </div>
                 </div>
-              )}
+              </div>
 
               {/* Recording Controls */}
               <RecordingControls
@@ -610,29 +881,6 @@ export function RCR30Page() {
                 showSetupState={workflowState === 'setup'}
                 workflowState={workflowState}
               />
-              
-              {/* Wake Lock Status - Show during recording */}
-              {workflowState === 'recording' && wakeLockSupported && (
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center justify-center space-x-2">
-                    {wakeLock ? (
-                      <>
-                        <span className="text-blue-600">📱</span>
-                        <p className="text-sm text-blue-700 font-medium">
-                          Tela mantida ativa para gravação longa
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-yellow-600">⚠️</span>
-                        <p className="text-sm text-yellow-700">
-                          Wake lock não está ativo - tela pode desligar
-                        </p>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
 
               {/* Validation Messages */}
               {!selectedTemplate && (
@@ -650,6 +898,16 @@ export function RCR30Page() {
                   📱 Para gravações longas, mantenha a tela ativa manualmente
                 </p>
               )}
+            </div>
+
+            {/* Patient Search and Display - Below Recording Controls */}
+            {/* Always visible - can select before, during, or after recording */}
+            <div className="mt-48">
+              <PatientSearchAndDisplay
+                onPatientSelected={handlePatientSelection}
+                disabled={false}
+                className=""
+              />
             </div>
 
             {/* Upload Progress - Hide when prontuario is completed */}
@@ -691,6 +949,7 @@ export function RCR30Page() {
                 templateId={selectedTemplate?.id || undefined}
                 templateName={selectedTemplate?.name || undefined}
                 specialty={selectedTemplate?.specialty || undefined}
+                autoSaved={true}
                 onSaved={(prontuarioId: string) => {
                   console.log('Prontuário saved with ID:', prontuarioId);
                 }}

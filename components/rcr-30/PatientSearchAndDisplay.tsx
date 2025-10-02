@@ -1,11 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   Button,
-  Input
+  Input,
+  Modal
 } from '../index';
 import { PatientDisplay } from './PatientDisplay';
+import { CPFInput } from '../ui/CPFInput';
+import { PINInput } from '../ui/PINInput';
+import { Alert } from '../ui/Alert';
+import { cleanNumeric } from '@/lib/form-validation';
 
 /**
  * =====================================
@@ -75,10 +80,10 @@ interface PatientSearchAndDisplayProps {
   className?: string;
 }
 
-export function PatientSearchAndDisplay({ 
-  onPatientSelected, 
+export function PatientSearchAndDisplay({
+  onPatientSelected,
   disabled = false,
-  className 
+  className
 }: PatientSearchAndDisplayProps) {
   // Search and selection state
   const [searchQuery, setSearchQuery] = useState('');
@@ -86,6 +91,15 @@ export function PatientSearchAndDisplay({
   const [searchResults, setSearchResults] = useState<PatientProfile[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [patientMedicalData, setPatientMedicalData] = useState<any>(null);
+
+  // Modal state for creating new patient
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newPatientName, setNewPatientName] = useState('');
+  const [formData, setFormData] = useState({ cpf: '', pin: '' });
+  const [validation, setValidation] = useState({ cpf: false, pin: false });
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [createSuccess, setCreateSuccess] = useState('');
 
   /**
    * SEARCH PATIENTS BY NAME
@@ -196,45 +210,102 @@ export function PatientSearchAndDisplay({
   };
 
   /**
-   * CREATE NEW PATIENT
-   * 
-   * When user types a name not found in database:
-   * 1. Creates temporary patient object with isExisting: false
-   * 2. Patient will be saved to database later during consultation creation
-   * 3. New patient gets inserted into profiles table with:
-   *    - full_name: user input
-   *    - cpf: to be collected later
-   *    - pin: auto-generated 6-digit number
-   *    - role: 'patient'
-   *    - created_by: current doctor's profile_id
-   *    - user_id: null (doctor-created patient)
+   * OPEN CREATE PATIENT MODAL
+   *
+   * When user clicks "Criar Paciente":
+   * 1. Opens modal with CPF and PIN fields
+   * 2. Pre-fills name from search query
+   * 3. Requires CPF (11 digits) and PIN (6 digits)
+   * 4. Creates real patient in database via API
    */
-  const handleCreateNewPatient = () => {
+  const handleOpenCreateModal = () => {
     if (!searchQuery.trim()) return;
 
-    // Check if exact name already exists in search results
+    // Check if exact name already exists
     const exactMatch = searchResults.find(
       patient => patient.name.toLowerCase() === searchQuery.trim().toLowerCase()
     );
-    
+
     if (exactMatch) {
-      // Select the existing patient instead
+      // Select existing patient instead
       handlePatientSelect(exactMatch);
     } else {
-      // Create new patient entry (temporary, will be saved later)
-      const newPatient: PatientProfile = {
-        id: 'temp-' + Date.now(), // temporary ID
-        name: searchQuery.trim(),
-        cpf: '', // will be filled later if needed
-        pin: '', // will be generated later
-        isExisting: false
-      };
-      setSelectedPatient(newPatient);
-      setSearchResults([]);
-      setPatientMedicalData(null); // No medical data for new patients
-      
-      // Notify parent component
-      onPatientSelected(newPatient);
+      // Open modal to create new patient
+      setNewPatientName(searchQuery.trim());
+      setFormData({ cpf: '', pin: '' });
+      setValidation({ cpf: false, pin: false });
+      setCreateError('');
+      setCreateSuccess('');
+      setShowCreateModal(true);
+    }
+  };
+
+  /**
+   * CREATE NEW PATIENT IN DATABASE
+   *
+   * Calls the same API as CreatePatientModal:
+   * POST /api/doctor/create-patient
+   *
+   * Creates patient in profiles table with:
+   * - full_name: from search query
+   * - cpf: from form input
+   * - pin: from form input
+   * - role: 'patient'
+   * - created_by: current doctor's profile_id
+   * - user_id: null (doctor-created patient)
+   */
+  const handleCreatePatient = async () => {
+    if (!validation.cpf || !validation.pin || creating) return;
+
+    setCreating(true);
+    setCreateError('');
+    setCreateSuccess('');
+
+    try {
+      const cleanPin = cleanNumeric(formData.pin);
+
+      const response = await fetch('/api/doctor/create-patient', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cpf: formData.cpf,
+          name: newPatientName,
+          pin: cleanPin
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setCreateSuccess(`✅ Paciente "${data.patient.full_name}" criado com sucesso!`);
+
+        // Select the newly created patient
+        const newPatient: PatientProfile = {
+          id: data.patient.profile_id,
+          name: data.patient.full_name,
+          cpf: data.patient.cpf,
+          pin: data.patient.pin,
+          isExisting: true
+        };
+
+        setSelectedPatient(newPatient);
+        setSearchQuery(newPatient.name);
+        onPatientSelected(newPatient);
+
+        // Close modal after 1.5 seconds
+        setTimeout(() => {
+          setShowCreateModal(false);
+        }, 1500);
+      } else {
+        setCreateError(data.error || 'Erro ao criar paciente');
+      }
+    } catch (error) {
+      console.error('Error creating patient:', error);
+      setCreateError('Erro de conexão. Tente novamente.');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -244,7 +315,7 @@ export function PatientSearchAndDisplay({
    */
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
-      handleCreateNewPatient();
+      handleOpenCreateModal();
     }
   };
 
@@ -333,7 +404,7 @@ export function PatientSearchAndDisplay({
                   ✨ <strong>"{searchQuery}"</strong> será criado como novo paciente.
                 </p>
                 <Button
-                  onClick={handleCreateNewPatient}
+                  onClick={handleOpenCreateModal}
                   className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-lg font-medium transition-colors"
                   disabled={disabled}
                 >
@@ -386,7 +457,7 @@ export function PatientSearchAndDisplay({
       {/* Uses PatientDisplay component to show complete medical profile */}
       {selectedPatient && selectedPatient.isExisting && patientMedicalData && (
         <div className="space-y-4">
-          <PatientDisplay 
+          <PatientDisplay
             patient={{
               id: selectedPatient.id,
               full_name: selectedPatient.name,
@@ -400,6 +471,126 @@ export function PatientSearchAndDisplay({
           />
         </div>
       )}
+
+      {/* =====================================
+          CREATE PATIENT MODAL
+          ===================================== */}
+      <Modal
+        open={showCreateModal}
+        onClose={() => !creating && setShowCreateModal(false)}
+        title="➕ Criar Novo Paciente"
+        description={`Crie um perfil para "${newPatientName}"`}
+        size="md"
+      >
+        <form onSubmit={(e) => { e.preventDefault(); handleCreatePatient(); }} className="space-y-6">
+          {/* Success Message */}
+          {createSuccess && (
+            <Alert variant="success">
+              {createSuccess}
+            </Alert>
+          )}
+
+          {/* Error Message */}
+          {createError && (
+            <Alert variant="error">
+              {createError}
+            </Alert>
+          )}
+
+          {/* Patient Name (Read-only) */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-700">
+              Nome do Paciente
+            </label>
+            <Input
+              type="text"
+              value={newPatientName}
+              disabled
+              className="bg-slate-50"
+            />
+          </div>
+
+          {/* CPF Input */}
+          <div className="space-y-2">
+            <label htmlFor="modal-cpf" className="block text-sm font-medium text-slate-700">
+              CPF do Paciente *
+            </label>
+            <CPFInput
+              id="modal-cpf"
+              value={formData.cpf}
+              onChange={(cpf, isValid) => {
+                setFormData(prev => ({ ...prev, cpf }));
+                setValidation(prev => ({ ...prev, cpf: isValid }));
+                setCreateError('');
+              }}
+              placeholder="000.000.000-00"
+              disabled={creating}
+              helperText="O CPF será usado para vincular a conta"
+              variant={validation.cpf && formData.cpf ? 'success' : 'default'}
+            />
+          </div>
+
+          {/* PIN Input */}
+          <div className="space-y-2">
+            <label htmlFor="modal-pin" className="block text-sm font-medium text-slate-700">
+              PIN do Paciente (6 dígitos) *
+            </label>
+            <PINInput
+              id="modal-pin"
+              value={formData.pin}
+              onChange={(pin, isValid) => {
+                setFormData(prev => ({ ...prev, pin }));
+                setValidation(prev => ({ ...prev, pin: isValid }));
+                setCreateError('');
+              }}
+              placeholder="000 000"
+              disabled={creating}
+              showValue={true}
+              helperText="PIN para busca rápida do paciente"
+              variant={validation.pin && formData.pin ? 'success' : 'default'}
+            />
+          </div>
+
+          {/* Info Box */}
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0">
+                <span className="text-blue-600 text-lg">💡</span>
+              </div>
+              <div className="text-sm text-blue-800">
+                <p className="font-medium mb-1">Como funciona:</p>
+                <ul className="space-y-1 text-xs">
+                  <li>• O paciente poderá se cadastrar usando este CPF</li>
+                  <li>• Automaticamente receberá acesso aos dados médicos</li>
+                  <li>• Use o PIN para buscar o paciente rapidamente</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowCreateModal(false)}
+              disabled={creating}
+              className="w-full sm:w-auto"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={creating}
+              disabled={!validation.cpf || !validation.pin || creating}
+              className="w-full sm:w-auto"
+            >
+              {creating ? 'Criando...' : 'Criar Paciente'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

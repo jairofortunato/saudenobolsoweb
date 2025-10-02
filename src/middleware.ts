@@ -54,10 +54,26 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Get the user session
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Check if there's an access token cookie before trying to get user
+  const hasAccessToken = request.cookies.has('sb-access-token') ||
+                         request.cookies.has('supabase-auth-token') ||
+                         Array.from(request.cookies.getAll()).some(cookie =>
+                           cookie.name.includes('auth-token')
+                         )
+
+  // Get the user session - only if we have a token
+  let user = null
+  if (hasAccessToken) {
+    try {
+      const { data, error } = await supabase.auth.getUser()
+      if (!error) {
+        user = data.user
+      }
+    } catch (error) {
+      // No valid session, user remains null
+      console.log('Middleware: Invalid session')
+    }
+  }
 
   const { pathname } = request.nextUrl
 

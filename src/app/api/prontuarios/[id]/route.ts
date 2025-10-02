@@ -73,24 +73,56 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized - No user found' }, { status: 401 })
     }
     
-    const { data, error } = await supabase!
+    // Try prontuarios table first
+    const { data: prontuarioData, error: prontuarioError } = await supabase!
       .from('prontuarios')
       .select('*')
       .eq('id', params.id)
-      .single()
+      .maybeSingle()
 
-    if (error) {
-      console.error('❌ [PRONTUARIOS API] Database error in individual GET:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (prontuarioData) {
+      console.log('✅ [PRONTUARIOS API] Found in prontuarios table:', params.id);
+      return NextResponse.json({ prontuario: prontuarioData })
     }
 
-    if (!data) {
-      console.log('🚨 [PRONTUARIOS API] Prontuário not found:', params.id);
+    // If not found in prontuarios, try appointments table
+    const { data: appointmentData, error: appointmentError } = await supabase!
+      .from('appointments')
+      .select('id, prontuario, patient_name, created_at, meta')
+      .eq('id', params.id)
+      .maybeSingle()
+
+    if (appointmentError) {
+      console.error('❌ [PRONTUARIOS API] Database error in appointments:', appointmentError);
+      return NextResponse.json({ error: appointmentError.message }, { status: 500 })
+    }
+
+    if (!appointmentData) {
+      console.log('🚨 [PRONTUARIOS API] Prontuário not found in either table:', params.id);
       return NextResponse.json({ error: 'Prontuário not found' }, { status: 404 })
     }
 
-    console.log('✅ [PRONTUARIOS API] Individual GET successful for:', params.id);
-    return NextResponse.json({ prontuario: data })
+    // Extract prontuario text from JSONB field
+    const prontuarioText = appointmentData.prontuario?.prontuario_text ||
+                           appointmentData.prontuario?.content ||
+                           appointmentData.prontuario?.text ||
+                           JSON.stringify(appointmentData.prontuario, null, 2);
+
+    // Format response to match expected structure
+    const formattedProntuario = {
+      id: appointmentData.id,
+      content: prontuarioText,
+      patient_name: appointmentData.patient_name,
+      created_at: appointmentData.created_at,
+      title: appointmentData.meta?.title || null,
+      template_name: appointmentData.meta?.template_name || null,
+      specialty: appointmentData.meta?.specialty || null,
+      summary: appointmentData.meta?.summary || null,
+      meta: appointmentData.meta
+    };
+
+    console.log('✅ [PRONTUARIOS API] Found in appointments table:', params.id);
+    return NextResponse.json({ prontuario: formattedProntuario })
     
   } catch (err) {
     console.error('❌ [PRONTUARIOS API] Unexpected error in individual GET:', err);

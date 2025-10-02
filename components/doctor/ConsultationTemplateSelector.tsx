@@ -308,139 +308,88 @@ Não invente dados. Apenas use o que está presente na transcrição.`);
     preloadDefaultTemplates();
   }, [preloadDefaultTemplates]);
 
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
   return (
-    <div className={`space-y-8 ${className}`}>
+    <div className={`relative ${className}`}>
       {error && (
-        <div className="text-center">
-          <div className="inline-block p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+        <div className="text-center mb-4">
+          <div className="inline-block p-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs">
             ⚠️ {error}
           </div>
         </div>
       )}
 
-      <div className="text-center space-y-6">
-        <h2 className="text-3xl font-bold text-gray-900 mb-8">
-          Qual formato do prontuario?
-        </h2>
-        
-        {/* Search/Filter Input */}
-        {!isLoading && templates.length > 5 && (
-          <div className="mb-4">
-            <Input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="🔍 Buscar por nome ou especialidade..."
-              disabled={disabled}
-              className="w-full"
-            />
+      {/* Compact Dropdown Button */}
+      <div className="relative">
+        <button
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          disabled={disabled || isLoading}
+          className="flex items-center gap-3 px-4 py-3 bg-white border-2 border-gray-300 rounded-full hover:border-blue-400 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {/* Icon */}
+          <svg className="w-5 h-5 text-gray-700 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M9 9h6" />
+            <path d="M9 12h6" />
+            <path d="M9 15h6" />
+          </svg>
+
+          {/* Text */}
+          <div className="flex-1 text-left">
+            <div className="text-xs text-gray-600">Template:</div>
+            <div className="text-sm font-semibold text-gray-900">
+              {isLoading ? 'Carregando...' : selectedTemplate?.name || 'SOAP Padrão'}
+            </div>
+          </div>
+
+          {/* Loading or Chevron */}
+          {isLoading ? (
+            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+          ) : (
+            <svg
+              className={`w-4 h-4 text-gray-500 flex-shrink-0 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          )}
+        </button>
+
+        {/* Dropdown Menu */}
+        {isDropdownOpen && !isLoading && (
+          <div className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-gray-200 rounded-2xl shadow-lg z-50 max-h-64 overflow-y-auto">
+            {templates.map((template) => (
+              <button
+                key={template.id}
+                onClick={() => {
+                  handleTemplateSelect(template);
+                  setIsDropdownOpen(false);
+                }}
+                className={`w-full px-4 py-3 text-left hover:bg-blue-50 transition-colors first:rounded-t-2xl last:rounded-b-2xl ${
+                  selectedTemplate?.id === template.id ? 'bg-blue-50 font-semibold text-blue-700' : 'text-gray-900'
+                }`}
+              >
+                <div className="text-sm">{template.name}</div>
+                {template.specialty && (
+                  <div className="text-xs text-gray-500 mt-0.5">{template.specialty}</div>
+                )}
+              </button>
+            ))}
           </div>
         )}
-
-        <div className="relative mx-auto">
-          <select
-            value={selectedTemplate?.id || ''}
-            onChange={(e) => {
-              const template = templates.find(t => t.id === e.target.value);
-              if (template) handleTemplateSelect(template);
-            }}
-            disabled={disabled || isLoading}
-            className="w-full text-lg py-4 px-6 rounded-full border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all disabled:opacity-50"
-          >
-            {isLoading ? (
-              <option>Carregando templates...</option>
-            ) : (
-              visibleTemplates().map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name} {template.is_default ? '(Padrão)' : ''}
-                </option>
-              ))
-            )}
-          </select>
-
-          {/* Load More Button for Large Lists */}
-          {!isLoading && filteredTemplates().length > visibleCount && (
-            <div className="mt-2 text-center">
-              <button
-                onClick={loadMoreTemplates}
-                className="text-blue-600 hover:text-blue-800 text-sm"
-              >
-                Mostrar mais templates... ({filteredTemplates().length - visibleCount} restantes)
-              </button>
-            </div>
-          )}
-          
-          {isLoading && (
-            <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-              <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          )}
-          
-          {selectedTemplate && (
-            <div className="mt-4 p-4 rounded-lg">
-         
-            </div>
-          )}
-
-          {showCreateForm && !isFallbackMode && (
-            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Formato do Prontuário *</label>
-                  <Input
-                    type="text"
-                    value={newTemplateName}
-                    onChange={(e) => setNewTemplateName(e.target.value)}
-                    placeholder="Ex: Consulta Cardiológica"
-                    disabled={isCreating}
-                    className="w-full"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Especialidade *</label>
-                  <Input
-                    type="text"
-                    value={newTemplateSpecialty}
-                    onChange={(e) => setNewTemplateSpecialty(e.target.value)}
-                    placeholder="Ex: Cardiologia"
-                    disabled={isCreating}
-                    className="w-full"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Prompt de IA *</label>
-                  <textarea
-                    value={newTemplatePrompt}
-                    onChange={(e) => setNewTemplatePrompt(e.target.value)}
-                    placeholder="Instruções para a IA processar a transcrição..."
-                    disabled={isCreating}
-                    className="w-full h-32 p-3 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <Button
-                    onClick={() => setShowCreateForm(false)}
-                    variant="outline"
-                    disabled={isCreating}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={handleCreateTemplate}
-                    disabled={isCreating || !newTemplateName.trim() || !newTemplateSpecialty.trim() || !newTemplatePrompt.trim()}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    {isCreating ? 'Criando...' : '✅ Criar Template'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
+
+      {/* Click outside to close dropdown */}
+      {isDropdownOpen && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setIsDropdownOpen(false)}
+        />
+      )}
     </div>
   );
 }
