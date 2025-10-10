@@ -340,13 +340,13 @@ export default function FormatosAnamnesePage() {
   ) => {
     return (
       <div className="mb-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">{title}</h2>
+        <h2 className="title-2 mb-6">{title}</h2>
 
         {/* Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column - Example */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Exemplo</h3>
+            <h3 className="title-3 mb-3">Exemplo</h3>
             <div className="bg-white border border-gray-200 rounded-lg p-4 h-80 overflow-y-auto">
               <pre className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap font-sans">
                 {example}
@@ -357,7 +357,7 @@ export default function FormatosAnamnesePage() {
           {/* Right Column - Instructions */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">Instruções</h3>
+              <h4 className="title-3">Instruções</h4>
               {!isDefault && onEdit && onDelete && !isEditing && (
                 <div className="flex gap-2">
                   <Button
@@ -423,22 +423,23 @@ export default function FormatosAnamnesePage() {
 
   return (
     <DashboardLayout
+      title="Templates de Prontuários"
       showSidebar={true}
       containerMaxWidth="full"
+      className="font-petrona"
+      actions={
+        <Button
+          variant="primary"
+          onClick={() => setIsCreateModalOpen(true)}
+          className="flex items-center gap-2"
+        >
+          <span>➕</span>
+          <span>Criar Novo Template</span>
+        </Button>
+      }
     >
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header with Create Button */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Templates de Prontuários</h1>
-          <Button
-            variant="primary"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <span>➕</span>
-            <span>Criar Novo Template</span>
-          </Button>
-        </div>
+      <div className="p-6 m-4 geist-regular">
+        <div className="bg-white/30 backdrop-blur-md rounded-2xl border border-slate-200/50 p-6">
 
         {/* Default SOAP Template */}
         {renderTemplateSection(
@@ -461,7 +462,7 @@ export default function FormatosAnamnesePage() {
         ) : userTemplates.length > 0 ? (
           <>
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">
+              <h2 className="title-2">
                 Prontuários Personalizados
               </h2>
             </div>
@@ -482,12 +483,12 @@ export default function FormatosAnamnesePage() {
           </>
         ) : (
           <div className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            <h2 className="title-2 mb-6">
              Prontuários Personalizados
             </h2>
             <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
               <div className="text-6xl mb-4">📋</div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">
+              <h3 className="text-xl font-semibold text-gray-800 mb-2 font-petrona">
                 Nenhum template personalizado
               </h3>
               <p className="text-gray-600">
@@ -496,6 +497,7 @@ export default function FormatosAnamnesePage() {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* Create Template Modal */}

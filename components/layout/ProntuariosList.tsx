@@ -84,7 +84,7 @@ export function ProntuariosList({ collapsed = false }: ProntuariosListProps) {
 
   if (prontuarios.length === 0) {
     return collapsed ? null : (
-      <p className="text-xs text-slate-500 text-center py-4">
+      <p className="text-xs text-slate-500 text-center py-4 font-medium">
         Nenhuma consulta ainda
       </p>
     );
@@ -114,7 +114,7 @@ export function ProntuariosList({ collapsed = false }: ProntuariosListProps) {
             </div>
           ) : (
             <div className="flex items-center justify-between gap-2">
-              <span className="text-slate-500 text-xs">
+              <span className="text-slate-500 text-xs font-normal">
                 {new Date(prontuario.created_at).toLocaleDateString('pt-BR')}
               </span>
               <span className="font-medium truncate">

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../ui/Button';
@@ -100,6 +101,13 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       </svg>
     );
 
+    const IconSettings = () => (
+      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
+      </svg>
+    );
+
     const IconLogout = () => (
       <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
@@ -117,8 +125,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     const handleSignOut = async () => {
       try {
         await signOut();
-        // Redirect to sign-in page after successful sign-out
-        router.push('/signin');
+        // Redirect to landing page after successful sign-out
+        router.push('/');
       } catch (error) {
         console.error('Error signing out:', error);
       }
@@ -180,6 +188,11 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         label: 'Templates Prontuário',
         icon: <IconTemplate />,
       },
+      {
+        href: '/doctor/configuracoes',
+        label: 'Configurações',
+        icon: <IconSettings />,
+      },
     ];
 
     const navigationItems = isDoctor ? doctorNavItems : patientNavItems;
@@ -190,18 +203,24 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       <aside
         ref={ref}
         className={cn(
-          "flex flex-col h-screen bg-gradient-to-b from-white to-slate-50 border-r border-slate-200 transition-all duration-300 ease-in-out",
+          "flex flex-col h-screen bg-white/30 backdrop-blur-md border-r border-slate-200/50 transition-all duration-300 ease-in-out",
           isCollapsed ? "w-16" : "w-64",
           className
         )}
         {...props}
       >
         {/* Header with toggle */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-200">
+        <div className="flex items-center justify-between p-4 border-b border-slate-200/50">
           {!isCollapsed && (
             <div className="flex items-center space-x-3">
-            
-              <span className="font-bold text-slate-800">ProntoDoc</span>
+              <Image
+                src="/prontodoclogo.png"
+                alt="ProntoDoc"
+                width={140}
+                height={40}
+                className="object-contain"
+                priority
+              />
             </div>
           )}
           
@@ -266,7 +285,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
 
         {/* Prontuários Section - Only for doctors */}
         {isDoctor && (
-          <div className="flex-1 flex flex-col border-t border-slate-200 overflow-hidden">
+          <div className="flex-1 flex flex-col border-t border-slate-200/50 overflow-hidden">
             <div className="px-3 pt-4 pb-3 flex-shrink-0">
               <div className={cn("flex items-center justify-between", isCollapsed && "justify-center")}>
                 {!isCollapsed && (
@@ -285,7 +304,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
 
         {/* Footer with user info */}
         {!isCollapsed && profile && (
-          <div className="p-4 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+          <div className="p-4 border-t border-slate-200/50 bg-white/20">
             <div className="flex items-center space-x-3">
             
               <div className="flex-1 min-w-0">
@@ -311,7 +330,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
 
         {/* Collapsed user avatar */}
         {isCollapsed && profile && (
-          <div className="p-3 border-t border-slate-200 space-y-2">
+          <div className="p-3 border-t border-slate-200/50 space-y-2">
             <div className="flex justify-center">
               <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
                 {profile.full_name.charAt(0).toUpperCase()}

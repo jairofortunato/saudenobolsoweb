@@ -142,9 +142,9 @@ export default function ProntuariosPage() {
   }
 
   return (
-    <DashboardLayout title="Prontuários">
-      <div className="min-h-screen bg-white">
-        <div className="py-8">
+    <DashboardLayout title="Prontuários" className='font-petrona'>
+      <div className="min-h-screen p-6 m-4 geist-regular">
+        <div className="bg-white/30 backdrop-blur-md rounded-2xl border border-slate-200/50 p-6">
           {prontuarios.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500">Nenhum prontuário encontrado.</p>

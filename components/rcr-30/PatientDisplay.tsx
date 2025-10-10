@@ -182,7 +182,7 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
   return (
     <div className="space-y-6">
       {/* Allergies Section */}
-      <div className="p-3">
+      <div>
         <div>
           <h3 className="flex items-center justify-between text-lg font-semibold text-black">
             <span>⚠️ Alergias</span>
@@ -291,7 +291,7 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
       </div>
 
       {/* Diseases Section */}
-      <div className="p-3">
+      <div>
         <div>
           <h3 className="flex items-center justify-between text-lg font-semibold text-black">
             <span>🩺 Doenças</span>
@@ -440,7 +440,7 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
       </div>
 
       {/* Medications Section */}
-      <div className="p-3">
+      <div>
         <div>
           <h3 className="flex items-center justify-between text-lg font-semibold text-black">
             <span>💊 Medicamentos</span>
@@ -575,7 +575,7 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
       </div>
 
       {/* Exams Section */}
-      <div className="p-3">
+      <div>
         <div>
           <h3 className="flex items-center justify-between text-lg font-semibold text-black">
             <span>🔬 Exames</span>
@@ -716,7 +716,7 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
       </div>
 
       {/* Consultations Section */}
-      <div className="p-3">
+      <div>
         <div>
           <h3 className="flex items-center justify-between text-lg font-semibold text-black">
             <span>👩‍⚕️ Consultas</span>

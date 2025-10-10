@@ -193,14 +193,16 @@ export default function DoctorPatientsPage() {
     <DashboardLayout
       title="Meus Pacientes"
       subtitle={`Dr. ${getDisplayName(profile)}`}
+      className="font-petrona"
     >
-      <div className="space-y-6">
+      <div className="p-6 m-4 geist-regular">
+        <div className="bg-white/30 backdrop-blur-md rounded-2xl border border-slate-200/50 p-6 space-y-6">
 
         {/* Patient Search Results */}
         {searchResult && (
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-slate-800">
+              <h2 className="text-xl font-semibold text-slate-800 font-petrona">
                 📋 Dados do Paciente
               </h2>
               <Button
@@ -244,12 +246,12 @@ export default function DoctorPatientsPage() {
           ) : filteredPatients.length === 0 ? (
             <div className="text-center py-8">
               {searchTerm ? (
-                <p className="text-slate-600">
+                <p className="text-slate-600 font-medium">
                   Nenhum paciente encontrado para &quot;{searchTerm}&quot;
                 </p>
               ) : (
                 <div className="space-y-2">
-                  <p className="text-slate-600">Nenhum paciente cadastrado ainda.</p>
+                  <p className="text-slate-600 font-medium">Nenhum paciente cadastrado ainda.</p>
                   <Button
                     variant="primary"
                     onClick={() => setIsCreatePatientOpen(true)}
@@ -347,6 +349,7 @@ export default function DoctorPatientsPage() {
             }
           }}
         />
+        </div>
       </div>
     </DashboardLayout>
   );

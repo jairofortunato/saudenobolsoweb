@@ -85,15 +85,18 @@ export async function middleware(request: NextRequest) {
     '/emergency', // Emergency access might be public
   ]
 
-  // Routes that require authentication
+  // Routes that require authentication (accessible to both patients and doctors)
   const protectedRoutes = [
     '/dashboard',
     '/medications',
-    '/allergies', 
+    '/allergies',
     '/exams',
     '/diseases',
     '/consultations',
     '/profile',
+    '/prontodoc-rcr30', // ProntoDoc RCR-30 page (shared)
+    '/prontodoc',        // ProntoDoc pages (shared)
+    '/prontuarios',      // Prontuários pages (shared)
   ]
 
   // Doctor-only routes
@@ -145,6 +148,11 @@ export async function middleware(request: NextRequest) {
       .eq('user_id', user.id)
       .single()
 
+    // Allow prontodoc-rcr30 for both patients and doctors (shared page)
+    if (pathname.startsWith('/doctor/prontodoc-rcr30')) {
+      return response; // Allow access for both roles
+    }
+
     // Redirect doctors trying to access patient routes
     if (isDoctorRoute && profile?.role !== 'doctor') {
       const redirectUrl = request.nextUrl.clone()
@@ -152,7 +160,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(redirectUrl)
     }
 
-    // Redirect patients trying to access doctor routes
+    // Redirect patients trying to access doctor routes (except prontodoc-rcr30)
     if (isPatientRoute && profile?.role !== 'patient') {
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = '/doctor/dashboard'

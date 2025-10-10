@@ -15,7 +15,7 @@ interface BadgeToggleCardProps {
   children: ReactNode;
   isDeleting?: boolean;
   isSaving?: boolean;
-  variant?: 'default' | 'orange' | 'red' | 'blue' | 'purple' | 'green';
+  variant?: 'default' | 'orange' | 'red' | 'blue' | 'slate' | 'green';
   // New props for metadata
   createdBy?: string;
   createdAt?: string | Date;
@@ -85,11 +85,11 @@ export const BadgeToggleCard: React.FC<BadgeToggleCardProps> = ({
           border: 'border-blue-200',
           accent: 'text-blue-600'
         };
-      case 'purple':
+      case 'slate':
         return {
-          badge: 'bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-200',
-          border: 'border-purple-200',
-          accent: 'text-purple-600'
+          badge: 'bg-slate-200 text-slate-800 border-slate-300 hover:bg-slate-300',
+          border: 'border-slate-300',
+          accent: 'text-slate-600'
         };
       case 'green':
         return {

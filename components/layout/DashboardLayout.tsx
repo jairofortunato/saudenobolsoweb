@@ -55,11 +55,11 @@ const DashboardLayout = React.forwardRef<HTMLDivElement, DashboardLayoutProps>(
     // Show loading while checking authentication
     if (loading) {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
-          <Loading 
-            type="spinner" 
-            variant="primary" 
-            size="lg" 
+        <div className="min-h-screen flex items-center justify-center">
+          <Loading
+            type="spinner"
+            variant="primary"
+            size="lg"
             text="Carregando..."
           />
         </div>
@@ -75,7 +75,7 @@ const DashboardLayout = React.forwardRef<HTMLDivElement, DashboardLayoutProps>(
       <div
         ref={ref}
         className={cn(
-          "min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50",
+          "min-h-screen",
           className
         )}
         {...props}
@@ -155,7 +155,7 @@ const DashboardLayout = React.forwardRef<HTMLDivElement, DashboardLayoutProps>(
                     <div className="mb-4 sm:mb-0">
                       {title && (
                         <div className="flex items-center gap-4 mb-2">
-                          <h1 className="text-3xl font-bold text-slate-800">
+                          <h1 className="title-1">
                             {title}
                           </h1>
                           {/* PIN Display - for patients only */}
@@ -178,7 +178,7 @@ const DashboardLayout = React.forwardRef<HTMLDivElement, DashboardLayoutProps>(
                         </div>
                       )}
                       {subtitle && (
-                        <p className="text-slate-600">
+                        <p className="text-slate-600 font-medium">
                           {subtitle}
                         </p>
                       )}

@@ -349,7 +349,7 @@ export function PatientSearchAndDisplay({
           PATIENT SEARCH INTERFACE
           ===================================== */}
       <div className="text-center space-y-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">
+        <h1 className="title-1 mb-8">
           Qual nome do paciente?
         </h1>
         

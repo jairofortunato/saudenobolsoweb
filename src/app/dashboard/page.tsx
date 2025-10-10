@@ -726,7 +726,7 @@ export default function DashboardPage() {
                                 key={exam.id}
                                 id={exam.id}
                                 title={exam.name}
-                                variant="purple"
+                                variant="slate"
                                 category="Exame"
                                 createdBy={exam.created_by || "Sistema"}
                                 createdAt={exam.created_at}
@@ -744,7 +744,7 @@ export default function DashboardPage() {
                                     type="text"
                                     value={editData.name || ''}
                                     onChange={(e) => setEditData((prev: Record<string, any>) => ({ ...prev, name: e.target.value }))}
-                                    className="bg-transparent border-none outline-none text-sm font-medium text-purple-800"
+                                    className="bg-transparent border-none outline-none text-sm font-medium text-slate-800"
                                     placeholder="Nome do exame"
                                   />
                                 }
@@ -757,7 +757,7 @@ export default function DashboardPage() {
                                         type="date"
                                         value={editData.exam_date || ''}
                                         onChange={(e) => setEditData((prev: Record<string, any>) => ({ ...prev, exam_date: e.target.value }))}
-                                        className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-slate-500"
                                       />
                                     ) : (
                                       <p className="text-sm text-slate-600 mt-1">{formatDate(exam.exam_date)}</p>
@@ -771,7 +771,7 @@ export default function DashboardPage() {
                                           type="text"
                                           value={editData.doctor_name || ''}
                                           onChange={(e) => setEditData((prev: Record<string, any>) => ({ ...prev, doctor_name: e.target.value }))}
-                                          className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                          className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-slate-500"
                                           placeholder="Nome do médico"
                                         />
                                       ) : (
@@ -787,7 +787,7 @@ export default function DashboardPage() {
                                           value={editData.result || ''}
                                           onChange={(e) => setEditData((prev: Record<string, any>) => ({ ...prev, result: e.target.value }))}
                                           rows={2}
-                                          className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                          className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-slate-500"
                                           placeholder="Resultado do exame"
                                         />
                                       ) : (
@@ -803,7 +803,7 @@ export default function DashboardPage() {
                                           value={editData.notes || ''}
                                           onChange={(e) => setEditData((prev: Record<string, any>) => ({ ...prev, notes: e.target.value }))}
                                           rows={2}
-                                          className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                          className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-slate-500"
                                           placeholder="Observações sobre o exame"
                                         />
                                       ) : (
@@ -819,7 +819,7 @@ export default function DashboardPage() {
                                           type="url"
                                           value={editData.file_url || ''}
                                           onChange={(e) => setEditData((prev: Record<string, any>) => ({ ...prev, file_url: e.target.value }))}
-                                          className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                          className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-slate-500"
                                           placeholder="URL do arquivo"
                                         />
                                       ) : (

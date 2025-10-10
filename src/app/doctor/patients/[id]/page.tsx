@@ -230,7 +230,7 @@ export default function PatientDetailPage() {
 
   return (
     <DashboardLayout title={patient.full_name}>
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen">
         <div className="py-8">
 
           {/* Two Column Layout */}
@@ -238,7 +238,7 @@ export default function PatientDetailPage() {
 
             {/* Left Column - Prontuários */}
             <div>
-              <h2 className="text-2xl font-bold mb-6 text-black">Prontuários</h2>
+              <h2 className="text-2xl font-medium mb-6 text-black font-geist">Prontuários</h2>
               {medicalData.prontuarios.length > 0 ? (
                 <div className="space-y-3">
                   {medicalData.prontuarios.map((prontuario) => (
@@ -312,14 +312,14 @@ export default function PatientDetailPage() {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-gray-500">Nenhum prontuário cadastrado.</p>
+                  <p className="text-gray-500 font-medium">Nenhum prontuário cadastrado.</p>
                 </div>
               )}
             </div>
 
             {/* Right Column - Medical Data */}
             <div>
-              <h2 className="text-2xl font-bold mb-6 text-black">Dados Médicos</h2>
+              <h2 className="text-2xl font-medium mb-6 text-black font-geist">Dados Médicos</h2>
               <PatientDisplay
                 patient={patient}
                 medicalData={{
@@ -341,7 +341,7 @@ export default function PatientDetailPage() {
            medicalData.consultations.length === 0 &&
            medicalData.prontuarios.length === 0 && (
             <div className="p-12 text-center">
-              <p className="text-gray-500">Nenhum dado médico cadastrado para este paciente.</p>
+              <p className="text-gray-500 font-medium">Nenhum dado médico cadastrado para este paciente.</p>
             </div>
           )}
         </div>

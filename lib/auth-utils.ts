@@ -26,16 +26,21 @@ export const hasPermission = (
 
 /**
  * Get dashboard route based on user role
+ * Updated to redirect all users to ProntoDoc RCR-30 page after login
  */
 export const getDashboardRoute = (role: UserRole): string => {
-  switch (role) {
-    case 'patient':
-      return '/dashboard';
-    case 'doctor':
-      return '/doctor/dashboard';
-    default:
-      return '/';
-  }
+  // Always redirect to ProntoDoc RCR-30 page after login
+  return '/doctor/prontodoc-rcr30';
+
+  // Old role-based routing (commented out):
+  // switch (role) {
+  //   case 'patient':
+  //     return '/dashboard';
+  //   case 'doctor':
+  //     return '/doctor/dashboard';
+  //   default:
+  //     return '/';
+  // }
 };
 
 /**
@@ -48,9 +53,15 @@ export const isRouteAllowed = (route: string, role: UserRole | undefined): boole
   const publicRoutes = ['/', '/signin', '/signup', '/emergency'];
   if (publicRoutes.includes(route)) return true;
 
+  // Shared routes (allowed for both patients and doctors)
+  const sharedRoutes = ['/prontodoc-rcr30', '/prontodoc', '/prontuarios'];
+  if (sharedRoutes.some(allowedRoute => route.startsWith(allowedRoute))) {
+    return true;
+  }
+
   // Patient routes
   const patientRoutes = ['/dashboard', '/medications', '/allergies', '/exams', '/diseases', '/consultations'];
-  
+
   // Doctor routes
   const doctorRoutes = ['/doctor'];
 

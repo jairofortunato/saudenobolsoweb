@@ -14,6 +14,7 @@ interface SimpleProntuarioProps {
   templateName?: string;
   specialty?: string;
   autoSaved?: boolean; // If true, hide save button and show "Auto-saved" message
+  savedProntuarioId?: string; // ID of already saved prontuário (for updates)
   onSaved?: (prontuarioId: string) => void;
 }
 
@@ -28,6 +29,7 @@ export function SimpleProntuario({
   templateName,
   specialty,
   autoSaved = false,
+  savedProntuarioId,
   onSaved
 }: SimpleProntuarioProps) {
   const { user } = useAuth();
@@ -46,7 +48,7 @@ export function SimpleProntuario({
   // New state for edit tracking and save functionality
   const [title, setTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(savedProntuarioId || null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Track changes to textarea
@@ -66,7 +68,7 @@ export function SimpleProntuario({
 
   // Auto-save functionality
   const handleSave = useCallback(async () => {
-    if (!appointmentId || isSaving) return;
+    if (isSaving) return;
 
     if (!user) {
       console.error('No authenticated user found');
@@ -76,55 +78,94 @@ export function SimpleProntuario({
     setIsSaving(true);
     try {
       const finalTitle = title.trim() || generateTitle(editableText);
-      
+
       // Get the session token for authorization
       const { createClient } = await import('../../lib/supabase');
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-      
+
       // Add authorization header if we have a session
       if (session?.access_token) {
         headers['Authorization'] = `Bearer ${session.access_token}`;
       }
-      
-      console.log('🔧 [PRONTUARIO SAVE] Making request with headers:', Object.keys(headers));
-      
-      const response = await fetch('/api/prontuarios', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          title: finalTitle,
-          content: editableText,
-          appointment_id: appointmentId,
-          user_id: user.id, // Use authenticated user's ID
-          patient_id: patientId || null, // Allow null if no patient selected
-          patient_name: patientName || null,
-          template_name: templateName || null,
-          specialty: specialty || null,
-          version: 1,
-          summary: null,
-          meta: {}
-        }),
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        setSavedId(data.prontuario.id);
-        setHasUnsavedChanges(false); // Reset unsaved changes flag
-        onSaved?.(data.prontuario.id);
+      // Determine if we're updating or creating
+      const isUpdate = !!savedId;
+
+      if (isUpdate) {
+        // UPDATE existing prontuário
+        console.log('🔧 [PRONTUARIO UPDATE] Updating prontuário:', savedId);
+
+        const response = await fetch(`/api/prontuarios/${savedId}`, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify({
+            title: finalTitle,
+            content: editableText,
+            patient_id: patientId || null,
+            patient_name: patientName || null,
+            template_name: templateName || null,
+            specialty: specialty || null,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setHasUnsavedChanges(false);
+          onSaved?.(savedId);
+          console.log('✅ [PRONTUARIO UPDATE] Successfully updated');
+        } else {
+          const errorData = await response.json();
+          console.error('❌ [PRONTUARIO UPDATE] Failed:', errorData.error);
+        }
       } else {
-        console.error('Failed to save prontuário:', response.statusText);
+        // CREATE new prontuário
+        console.log('🔧 [PRONTUARIO SAVE] Creating new prontuário');
+
+        if (!appointmentId) {
+          console.error('Cannot create prontuário without appointmentId');
+          return;
+        }
+
+        const response = await fetch('/api/prontuarios', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            title: finalTitle,
+            content: editableText,
+            appointment_id: appointmentId,
+            user_id: user.id,
+            patient_id: patientId || null,
+            patient_name: patientName || null,
+            template_name: templateName || null,
+            specialty: specialty || null,
+            version: 1,
+            summary: null,
+            meta: {}
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setSavedId(data.prontuario.id);
+          setHasUnsavedChanges(false);
+          onSaved?.(data.prontuario.id);
+          console.log('✅ [PRONTUARIO SAVE] Successfully created:', data.prontuario.id);
+        } else {
+          const errorData = await response.json();
+          console.error('❌ [PRONTUARIO SAVE] Failed:', errorData.error);
+        }
       }
     } catch (error) {
       console.error('Error saving prontuário:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [appointmentId, patientId, editableText, title, generateTitle, patientName, templateName, specialty, onSaved, isSaving, user]);
+  }, [savedId, appointmentId, patientId, editableText, title, generateTitle, patientName, templateName, specialty, onSaved, isSaving, user]);
 
   const handleCopy = async () => {
     try {

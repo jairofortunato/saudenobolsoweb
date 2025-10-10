@@ -3,32 +3,32 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  // Base styles with rounded shapes and smooth transitions
-  "inline-flex items-center justify-center rounded-2xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 transform hover:scale-105 active:scale-95",
+  // Base styles with less curved edges and smooth transitions
+  "inline-flex items-center justify-center rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 transform hover:scale-105 active:scale-95",
   {
     variants: {
       variant: {
-        // Primary - soft pink gradient
-        primary: "bg-gradient-to-br from-pink-200 to-pink-300 text-pink-800 hover:from-pink-300 hover:to-pink-400 focus-visible:ring-pink-300 shadow-md hover:shadow-lg",
-        // Secondary - baby blue gradient  
-        secondary: "bg-gradient-to-br from-blue-200 to-blue-300 text-blue-800 hover:from-blue-300 hover:to-blue-400 focus-visible:ring-blue-300 shadow-md hover:shadow-lg",
+        // Primary - silver/slate gradient
+        primary: "bg-gradient-to-br from-slate-300 to-slate-400 text-slate-800 hover:from-slate-400 hover:to-slate-500 focus-visible:ring-slate-400 shadow-md hover:shadow-lg",
+        // Secondary - lighter silver
+        secondary: "bg-gradient-to-br from-slate-200 to-slate-300 text-slate-700 hover:from-slate-300 hover:to-slate-400 focus-visible:ring-slate-300 shadow-md hover:shadow-lg",
         // Success - mint green gradient
         success: "bg-gradient-to-br from-green-200 to-green-300 text-green-800 hover:from-green-300 hover:to-green-400 focus-visible:ring-green-300 shadow-md hover:shadow-lg",
         // Warning - soft yellow gradient
         warning: "bg-gradient-to-br from-yellow-200 to-yellow-300 text-yellow-800 hover:from-yellow-300 hover:to-yellow-400 focus-visible:ring-yellow-300 shadow-md hover:shadow-lg",
         // Danger - soft red gradient
         danger: "bg-gradient-to-br from-red-200 to-red-300 text-red-800 hover:from-red-300 hover:to-red-400 focus-visible:ring-red-300 shadow-md hover:shadow-lg",
-        // Ghost - subtle with lavender tint
-        ghost: "text-slate-600 hover:bg-lavender-100 hover:text-slate-700 focus-visible:ring-slate-300",
-        // Outline - subtle border with pastels
+        // Ghost - subtle with slate tint
+        ghost: "text-slate-600 hover:bg-slate-100 hover:text-slate-700 focus-visible:ring-slate-300",
+        // Outline - subtle border
         outline: "border-2 border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 focus-visible:ring-slate-300",
       },
       size: {
-        sm: "h-8 px-3 py-1.5 text-xs rounded-xl",
-        md: "h-10 px-4 py-2 text-sm rounded-2xl",
-        lg: "h-12 px-6 py-3 text-base rounded-2xl",
-        xl: "h-14 px-8 py-4 text-lg rounded-3xl",
-        icon: "h-10 w-10 rounded-2xl",
+        sm: "h-8 px-3 py-1.5 text-xs rounded-md",
+        md: "h-10 px-4 py-2 text-sm rounded-lg",
+        lg: "h-12 px-6 py-3 text-base rounded-lg",
+        xl: "h-14 px-8 py-4 text-lg rounded-xl",
+        icon: "h-10 w-10 rounded-lg",
       },
     },
     defaultVariants: {

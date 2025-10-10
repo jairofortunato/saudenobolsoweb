@@ -26,7 +26,6 @@ interface FormData {
   password: string;
   confirmPassword: string;
   cpf: string;
-  pin: string;
   role: UserRole | '';
   fullName: string;
 }
@@ -42,7 +41,7 @@ export default function SignupPage() {
   const router = useRouter();
   const { signUp, loading, error: authError, user } = useAuth();
   
-  // Check URL params for patient mode or default to patient mode
+  // Check URL params for patient mode or default to doctor mode
   const [isPatientMode, setIsPatientMode] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -53,7 +52,7 @@ export default function SignupPage() {
         return true; // Patient mode
       }
     }
-    return true; // Default to patient mode when ENABLE_PATIENT_SIGNUP is true
+    return false; // Default to doctor mode for public signup
   });
   
   const [formData, setFormData] = useState<FormData>({
@@ -61,7 +60,6 @@ export default function SignupPage() {
     password: '',
     confirmPassword: '',
     cpf: '',
-    pin: '',
     role: isPatientMode ? 'patient' : 'doctor', // Set role based on mode
     fullName: ''
   });
@@ -105,21 +103,7 @@ export default function SignupPage() {
       newErrors.confirmPassword = 'Senhas não coincidem';
     }
 
-    // CPF validation (only for patient mode)
-    if (isPatientMode) {
-      const cpfValidation = validateCPF(formData.cpf);
-      if (!cpfValidation.isValid) {
-        newErrors.cpf = cpfValidation.error!;
-      }
-    }
-
-    // PIN validation (only for patient mode)
-    if (isPatientMode) {
-      const pinValidation = validatePIN(formData.pin.replace(/\s/g, ''));
-      if (!pinValidation.isValid) {
-        newErrors.pin = pinValidation.error!;
-      }
-    }
+    // CPF validation removed - not required for signup
 
     // Role validation (only for patient mode, doctor is default)
     if (isPatientMode && !formData.role) {
@@ -146,19 +130,13 @@ export default function SignupPage() {
     setIsSubmitting(true);
     
     try {
-      // Prepare signup data based on mode
+      // Prepare signup data without CPF
       const signupData: any = {
         email: formData.email,
         password: formData.password,
         role: formData.role as UserRole,
         fullName: formData.fullName
       };
-
-      // Only include CPF and PIN for patient mode
-      if (isPatientMode) {
-        signupData.cpf = formData.cpf.replace(/\D/g, ''); // Remove formatting
-        signupData.pin = formData.pin.replace(/\s/g, ''); // Remove formatting
-      }
 
       const result = await signUp(signupData);
 
@@ -192,17 +170,13 @@ export default function SignupPage() {
     handleInputChange('cpf', value);
   };
 
-  const handlePINChange = (value: string, isValid: boolean) => {
-    handleInputChange('pin', value);
-  };
-
   const handleRoleChange = (role: UserRole) => {
     handleInputChange('role', role);
   };
 
   if (showSuccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-pink-50 flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="text-center p-8">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -229,23 +203,20 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-pink-50 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-slate-800 mb-2">
-            {isPatientMode ? 'Criar Conta - Paciente' : 'Criar Conta - Médico'}
+            Criar Conta - Médico
           </h1>
           <p className="text-slate-600 mb-4">
-            {isPatientMode
-              ? 'Cadastre-se como paciente no Saúde no Bolso'
-              : 'Cadastre-se como médico no ProntoDoc'
-            }
+            Cadastre-se como médico no ProntoDoc
           </p>
 
-          {/* Mode Toggle */}
-          <div className="flex items-center justify-center gap-4 mt-4">
+          {/* Mode Toggle - Hidden for public, accessible via URL params ?mode=patient */}
+          <div className="hidden">
             <Button
               type="button"
               variant={isPatientMode ? "primary" : "outline"}
@@ -312,38 +283,7 @@ export default function SignupPage() {
                 />
               </FormField>
 
-              {/* CPF - Only show in patient mode */}
-              {isPatientMode && (
-                <FormField 
-                  label="CPF" 
-                  required
-                  error={errors.cpf}
-                  helperText="Seu CPF será usado para verificação de identidade"
-                >
-                  <CPFInput
-                    value={formData.cpf}
-                    onChange={handleCPFChange}
-                    placeholder="000.000.000-00"
-                  />
-                </FormField>
-              )}
-
-              {/* PIN - Only show in patient mode */}
-              {isPatientMode && (
-                <FormField 
-                  label="PIN de Emergência" 
-                  required
-                  error={errors.pin}
-                  helperText="6 dígitos únicos para acesso médico de emergência"
-                >
-                  <PINInput
-                    value={formData.pin}
-                    onChange={handlePINChange}
-                    placeholder="000 000"
-                    showValue={false}
-                  />
-                </FormField>
-              )}
+              {/* CPF field removed for simpler signup */}
 
               {/* Password Fields */}
               <div className="grid gap-6 md:grid-cols-2">
