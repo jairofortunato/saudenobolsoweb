@@ -95,7 +95,7 @@ export type StatusChangeCallback = (status: AppointmentData) => void;
 
 // Error types for better error handling
 export interface RCR30Error {
-  type: 'recording' | 'storage' | 'upload' | 'network' | 'processing';
+  type: 'recording' | 'storage' | 'upload' | 'network' | 'processing' | 'validation';
   code: string;
   message: string;
   appointmentId?: string;

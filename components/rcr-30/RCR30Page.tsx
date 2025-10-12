@@ -33,7 +33,7 @@ import { TranscriptionDisplay } from './TranscriptionDisplay';
 import { ConsultationTemplateSelector } from '../doctor/ConsultationTemplateSelector';
 import { PatientSearchAndDisplay } from './PatientSearchAndDisplay';
 import { PatientDisplay } from './PatientDisplay';
-import { useMinuteBalance } from '../../hooks/useMinuteBalance';
+// import { useMinuteBalance } from '../../hooks/useMinuteBalance'; // Removed - no subscription checks needed
 import {
   RCR30Error,
   DEFAULT_RCR30_CONFIG
@@ -98,12 +98,8 @@ export function RCR30Page() {
   const [selectedTemplate, setSelectedTemplate] = useState<ConsultationTemplate | null>(null);
   const [error, setError] = useState<RCR30Error | null>(null);
 
-  // Minute balance hook
-  const { checkConsultationLimit, balance, subscription, fetchBalance } = useMinuteBalance();
-
   // Completed prontuario data
   const [completedProntuario, setCompletedProntuario] = useState<any | null>(null);
-  const [minutesDeducted, setMinutesDeducted] = useState<any | null>(null);
   const [savedProntuarioId, setSavedProntuarioId] = useState<string | null>(null);
 
   // Track when backend has results ready (even if upload API is still running)
@@ -604,39 +600,6 @@ export function RCR30Page() {
   });
 
   // Handle recording completion
-  // Deduct minutes after consultation is completed
-  const deductMinutesAfterConsultation = useCallback(async (durationSeconds: number) => {
-    try {
-      console.log(`💰 [MINUTE DEDUCTION] Deducting minutes for ${durationSeconds}s consultation`);
-
-      const response = await fetch('/api/subscription/deduct-minutes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          audioDurationSeconds: durationSeconds,
-          appointmentId: currentAppointmentId,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to deduct minutes');
-      }
-
-      const data = await response.json();
-      setMinutesDeducted(data.deduction);
-
-      console.log('✅ [MINUTE DEDUCTION] Minutes deducted successfully:', data.deduction);
-
-      // Refresh balance
-      await fetchBalance();
-    } catch (error) {
-      console.error('❌ [MINUTE DEDUCTION] Error deducting minutes:', error);
-      // Don't throw - this shouldn't block the consultation completion
-    }
-  }, [currentAppointmentId, fetchBalance]);
-
   async function handleRecordingComplete(finalBlob: Blob) {
     try {
       if (!currentAppointmentId) {
@@ -655,11 +618,6 @@ export function RCR30Page() {
       const duration = recordingStatus.duration;
       await uploadBlob(currentAppointmentId, finalBlob, duration);
 
-      // Deduct minutes for professional tier
-      if (subscription?.tier === 'professional') {
-        await deductMinutesAfterConsultation(duration);
-      }
-
     } catch (error) {
       console.error('Error handling recording completion:', error);
       handleError(error as RCR30Error);
@@ -670,19 +628,6 @@ export function RCR30Page() {
   const startNewAppointment = useCallback(async (patientName?: string) => {
     try {
       setError(null);
-
-      // Check consultation limit before starting
-      const limitCheck = checkConsultationLimit();
-
-      if (!limitCheck.canCreate) {
-        handleError({
-          type: 'validation',
-          code: limitCheck.upgradeRequired ? 'UPGRADE_REQUIRED' : 'INSUFFICIENT_MINUTES',
-          message: limitCheck.message || 'Não é possível criar consulta',
-          retryable: false,
-        });
-        return;
-      }
 
       // Create appointment via API
       const response = await fetch('/api/appointments', {
@@ -724,7 +669,7 @@ export function RCR30Page() {
         retryable: true
       });
     }
-  }, [selectedPatient, selectedPatientProfile, selectedTemplate, startRecording, handleError, checkConsultationLimit]);
+  }, [selectedPatient, selectedPatientProfile, selectedTemplate, startRecording, handleError]);
 
   // Stop recording and start processing
   const handleStopRecording = useCallback(async () => {

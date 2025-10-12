@@ -78,6 +78,26 @@ export function ErrorRecovery({
           textColor: 'text-purple-700',
           buttonColor: 'bg-purple-500 hover:bg-purple-600'
         };
+      case 'validation':
+        // Special handling for upgrade required
+        if (error.code === 'UPGRADE_REQUIRED') {
+          return {
+            icon: '⭐',
+            title: 'Upgrade to Professional',
+            bgColor: 'bg-gradient-to-r from-blue-50 to-purple-50',
+            borderColor: 'border-blue-300',
+            textColor: 'text-blue-900',
+            buttonColor: 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600'
+          };
+        }
+        return {
+          icon: '⚠️',
+          title: 'Validation Error',
+          bgColor: 'bg-yellow-50',
+          borderColor: 'border-yellow-200',
+          textColor: 'text-yellow-700',
+          buttonColor: 'bg-yellow-500 hover:bg-yellow-600'
+        };
       default:
         return {
           icon: '❌',
@@ -119,7 +139,16 @@ export function ErrorRecovery({
 
   const getRecoveryActions = (error: RCR30Error): string[] => {
     const actions: string[] = [];
-    
+
+    // Special handling for upgrade required
+    if (error.code === 'UPGRADE_REQUIRED') {
+      actions.push('✨ Consultas ilimitadas com o plano Professional');
+      actions.push('💰 Apenas R$ 190/mês (5.240 minutos inclusos)');
+      actions.push('📊 Acompanhe seu histórico completo');
+      actions.push('🔄 Sem limite de prontuários');
+      return actions;
+    }
+
     switch (error.type) {
       case 'recording':
         actions.push('Check microphone permissions');
@@ -145,7 +174,7 @@ export function ErrorRecovery({
         actions.push('Your recording is uploaded safely');
         break;
     }
-    
+
     return actions;
   };
 
@@ -195,29 +224,41 @@ export function ErrorRecovery({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
-          {error.retryable && onRetry && (
-            <button
-              onClick={onRetry}
-              className={`px-4 py-2 text-white rounded-lg font-medium transition-colors duration-200 ${config.buttonColor}`}
+          {error.code === 'UPGRADE_REQUIRED' ? (
+            // Special upgrade button for UPGRADE_REQUIRED
+            <a
+              href="/pricing"
+              className={`px-6 py-3 text-white rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg ${config.buttonColor}`}
             >
-              🔄 Try Again
-            </button>
-          )}
-          
-          <button
-            onClick={() => setShowDetails(!showDetails)}
-            className="px-4 py-2 text-gray-600 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors duration-200"
-          >
-            {showDetails ? '📖 Hide Details' : '🔍 Show Details'}
-          </button>
-          
-          {onViewDetails && (
-            <button
-              onClick={onViewDetails}
-              className="px-4 py-2 text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors duration-200"
-            >
-              📋 View Logs
-            </button>
+              ⭐ Assinar Professional - R$ 190/mês
+            </a>
+          ) : (
+            <>
+              {error.retryable && onRetry && (
+                <button
+                  onClick={onRetry}
+                  className={`px-4 py-2 text-white rounded-lg font-medium transition-colors duration-200 ${config.buttonColor}`}
+                >
+                  🔄 Try Again
+                </button>
+              )}
+
+              <button
+                onClick={() => setShowDetails(!showDetails)}
+                className="px-4 py-2 text-gray-600 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+              >
+                {showDetails ? '📖 Hide Details' : '🔍 Show Details'}
+              </button>
+
+              {onViewDetails && (
+                <button
+                  onClick={onViewDetails}
+                  className="px-4 py-2 text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors duration-200"
+                >
+                  📋 View Logs
+                </button>
+              )}
+            </>
           )}
         </div>
 
