@@ -3,11 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { 
-  FormField, 
-  CPFInput, 
-  PINInput, 
-  RoleSelector, 
+import {
+  FormField,
+  CPFInput,
+  PINInput,
+  RoleSelector,
   Input,
   Button,
   Card,
@@ -15,11 +15,13 @@ import {
   CardHeader,
   CardTitle,
   Alert,
-  type UserRole 
+  type UserRole
 } from '../../../components';
+import { WhatsAppReturnModal } from '../../../components/WhatsAppReturnModal';
 import { useAuth } from '../../../hooks/useAuth';
 import { validateCPF, validatePIN, validateEmail, validatePassword, validateName } from '../../../lib/form-validation';
 import { getDashboardRoute } from '../../../lib/auth-utils';
+import { isMobileDevice, isFromWhatsApp } from '../../../lib/device-utils';
 
 interface FormData {
   email: string;
@@ -67,16 +69,52 @@ export default function SignupPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isFromWA, setIsFromWA] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(3);
 
-  // Redirect to signin after successful signup
+  // Detect mobile device and WhatsApp
+  useEffect(() => {
+    setIsMobile(isMobileDevice());
+    setIsFromWA(isFromWhatsApp());
+  }, []);
+
+  // Handle successful signup - auto-redirect to WhatsApp or show modal/dashboard
   useEffect(() => {
     if (showSuccess) {
-      const timeout = setTimeout(() => {
-        router.push('/signin');
-      }, 2000);
-      return () => clearTimeout(timeout);
+      if (isMobile && isFromWA) {
+        // Auto-redirect to WhatsApp after countdown
+        setShowWhatsAppModal(true);
+        const whatsappLink = 'https://wa.me/5548996728482?text=Prontodoc';
+
+        // Start countdown
+        const countdownInterval = setInterval(() => {
+          setRedirectCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(countdownInterval);
+              // Redirect to WhatsApp
+              window.location.href = whatsappLink;
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+
+        return () => clearInterval(countdownInterval);
+      } else if (isMobile) {
+        // Show WhatsApp return modal on mobile (manual action)
+        setShowWhatsAppModal(true);
+      } else {
+        // Redirect to dashboard on desktop
+        const timeout = setTimeout(() => {
+          const dashboardRoute = getDashboardRoute(isPatientMode ? 'patient' : 'doctor');
+          router.push(dashboardRoute);
+        }, 2000);
+        return () => clearTimeout(timeout);
+      }
     }
-  }, [showSuccess, router]);
+  }, [showSuccess, isMobile, isFromWA, isPatientMode, router]);
 
   // Allow authenticated users to access signup page for testing
   // In production, you might want to redirect authenticated users to dashboard
@@ -174,7 +212,83 @@ export default function SignupPage() {
     handleInputChange('role', role);
   };
 
-  if (showSuccess) {
+  const handleContinueInBrowser = () => {
+    setShowWhatsAppModal(false);
+    const dashboardRoute = getDashboardRoute(isPatientMode ? 'patient' : 'doctor');
+    router.push(dashboardRoute);
+  };
+
+  // Show WhatsApp modal on mobile
+  if (showWhatsAppModal) {
+    // If from WhatsApp, show countdown
+    if (isFromWA && redirectCountdown > 0) {
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+            {/* Success Header */}
+            <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-6 text-center">
+              <div className="w-20 h-20 bg-white/20 backdrop-blur rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">
+                Conta criada com sucesso!
+              </h2>
+              {formData.fullName && (
+                <p className="text-white/90 text-sm">
+                  Bem-vindo, Dr(a). {formData.fullName}
+                </p>
+              )}
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4 text-center">
+              <p className="text-slate-700 font-medium">
+                Você já está logado!
+              </p>
+              <p className="text-slate-600 text-sm">
+                Redirecionando para WhatsApp em...
+              </p>
+
+              {/* Countdown */}
+              <div className="flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center">
+                  <span className="text-3xl font-bold text-white">{redirectCountdown}</span>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+                <p className="text-xs text-blue-800">
+                  No WhatsApp, envie seu email e senha para fazer login
+                </p>
+              </div>
+
+              {/* Cancel option */}
+              <button
+                onClick={handleContinueInBrowser}
+                className="text-sm text-slate-600 hover:text-slate-800 underline transition-colors"
+              >
+                Cancelar e continuar no navegador
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Regular modal (no auto-redirect)
+    return (
+      <WhatsAppReturnModal
+        isOpen={showWhatsAppModal}
+        doctorName={formData.fullName}
+        onContinueInBrowser={handleContinueInBrowser}
+      />
+    );
+  }
+
+  // Show success message on desktop
+  if (showSuccess && !isMobile) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -186,16 +300,13 @@ export default function SignupPage() {
             </div>
             <h2 className="text-2xl font-bold text-slate-800 mb-2">Conta criada com sucesso!</h2>
             <p className="text-slate-600 mb-6">
-              {isPatientMode 
-                ? 'Sua conta foi criada e seus dados médicos foram vinculados automaticamente.' 
+              {isPatientMode
+                ? 'Sua conta foi criada e seus dados médicos foram vinculados automaticamente.'
                 : 'Sua conta de médico foi criada com sucesso!'
               }<br/>
-              Você será redirecionado para o login em instantes...
+              Você será redirecionado para o painel em instantes...
             </p>
             <div className="animate-spin h-6 w-6 border-2 border-blue-300 border-t-blue-600 rounded-full mx-auto mb-4"></div>
-            <Link href="/signin">
-              <Button variant="primary" className="w-full mt-2">Ir para o login agora</Button>
-            </Link>
           </CardContent>
         </Card>
       </div>

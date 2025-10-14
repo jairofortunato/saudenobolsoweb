@@ -18,6 +18,9 @@ export * from './ui/RoleSelector';
 export * from './ui/Textarea';
 export * from './ui/TitleToggleCard';
 
+// Modals
+export * from './WhatsAppReturnModal';
+
 // Layout components
 export * from './layout/AuthLayout';
 export * from './layout/DashboardLayout';
