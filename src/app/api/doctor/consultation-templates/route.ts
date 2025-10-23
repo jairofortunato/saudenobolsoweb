@@ -145,8 +145,38 @@ Não invente dados. Apenas use o que está presente na transcrição.`,
     // Try to get authenticated user (optional for GET)
     let doctorProfileId = null;
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
+      console.log('🔍 [GET-TEMPLATES] Checking authentication...');
+
+      // Check for Authorization header (for API calls with Bearer token, e.g., WhatsApp)
+      const authHeader = request.headers.get('Authorization');
+      let user, authError;
+
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        // Extract token from "Bearer <token>"
+        const token = authHeader.substring(7);
+        console.log('🔐 [GET-TEMPLATES] Using Bearer token from Authorization header');
+        console.log('🔐 [GET-TEMPLATES] Token (first 20): ' + token.substring(0, 20) + '...');
+
+        // Get user from Bearer token
+        const result = await supabase.auth.getUser(token);
+        user = result.data.user;
+        authError = result.error;
+      } else {
+        // Fall back to cookie-based session (for web app)
+        console.log('🔐 [GET-TEMPLATES] No Bearer token, using cookie-based session');
+        const result = await supabase.auth.getUser();
+        user = result.data.user;
+        authError = result.error;
+      }
+
+      console.log('🔍 [GET-TEMPLATES] Auth check result:', {
+        hasUser: !!user,
+        userId: user?.id,
+        userEmail: user?.email,
+        authError: authError?.message,
+        authMethod: authHeader ? 'Bearer token' : 'Cookie session'
+      });
+
       if (!authError && user) {
         // Get user profile to get profile_id (if authenticated)
         const { data: profile, error: profileError } = await supabase
@@ -155,16 +185,27 @@ Não invente dados. Apenas use o que está presente na transcrição.`,
           .eq('user_id', user.id)
           .single();
 
+        console.log('🔍 [GET-TEMPLATES] Profile check result:', {
+          hasProfile: !!profile,
+          profileId: profile?.profile_id,
+          role: profile?.role,
+          profileError: profileError?.message
+        });
+
         if (!profileError && profile && profile.role === 'doctor') {
           doctorProfileId = profile.profile_id;
           console.log('👨‍⚕️ [GET-TEMPLATES] Authenticated doctor:', profile.profile_id);
+        } else {
+          console.log('⚠️ [GET-TEMPLATES] Profile found but not a doctor or has error');
         }
       }
     } catch (authError) {
       console.log('ℹ️ [GET-TEMPLATES] No authentication provided, showing public templates only');
+      console.log('ℹ️ [GET-TEMPLATES] Auth error details:', authError);
     }
 
     console.log('📋 [GET-TEMPLATES] Fetching consultation templates...');
+    console.log('📋 [GET-TEMPLATES] Doctor Profile ID for filtering:', doctorProfileId || 'none (unauthenticated)');
 
     // Query consultation_templates table
     // Always include public and default templates
@@ -186,15 +227,37 @@ Não invente dados. Apenas use o que está presente na transcrição.`,
 
     if (doctorProfileId) {
       // If authenticated, include public, default, and doctor's own templates
-      templateQuery = templateQuery.or(`is_public.eq.true,is_default.eq.true,created_by.eq.${doctorProfileId}`);
+      const filterCondition = `is_public.eq.true,is_default.eq.true,created_by.eq.${doctorProfileId}`;
+      console.log('📋 [GET-TEMPLATES] Applying authenticated filter:', filterCondition);
+      templateQuery = templateQuery.or(filterCondition);
     } else {
       // If not authenticated, only public and default templates
-      templateQuery = templateQuery.or('is_public.eq.true,is_default.eq.true');
+      const filterCondition = 'is_public.eq.true,is_default.eq.true';
+      console.log('📋 [GET-TEMPLATES] Applying public-only filter:', filterCondition);
+      templateQuery = templateQuery.or(filterCondition);
     }
 
     const { data: templates, error: templatesError } = await templateQuery
       .order('is_default', { ascending: false }) // Default templates first
       .order('name', { ascending: true });
+
+    if (templatesError) {
+      console.error('❌ [GET-TEMPLATES] Database error:', templatesError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch templates from database' },
+        { status: 500 }
+      );
+    }
+
+    console.log('✅ [GET-TEMPLATES] Database query completed:');
+    console.log('  - Total templates returned:', templates?.length || 0);
+
+    // Log each template for debugging
+    if (templates && templates.length > 0) {
+      templates.forEach((t, i) => {
+        console.log(`  ${i + 1}. "${t.name}" - created_by: ${t.created_by}, is_public: ${t.is_public}, is_default: ${t.is_default}`);
+      });
+    }
 
     // Ensure SOAP template is always first if it exists
     if (templates && templates.length > 0) {
@@ -205,14 +268,6 @@ Não invente dados. Apenas use o que está presente na transcrição.`,
         templates.length = 0; // Clear array
         templates.push(soapTemplate, ...otherTemplates);
       }
-    }
-
-    if (templatesError) {
-      console.error('❌ [GET-TEMPLATES] Database error:', templatesError);
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch templates from database' },
-        { status: 500 }
-      );
     }
 
     console.log('✅ [GET-TEMPLATES] Templates fetched successfully:');

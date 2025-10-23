@@ -33,6 +33,7 @@ import { TranscriptionDisplay } from './TranscriptionDisplay';
 import { ConsultationTemplateSelector } from '../doctor/ConsultationTemplateSelector';
 import { PatientSearchAndDisplay } from './PatientSearchAndDisplay';
 import { PatientDisplay } from './PatientDisplay';
+import { ExamImageUpload } from './ExamImageUpload';
 // import { useMinuteBalance } from '../../hooks/useMinuteBalance'; // Removed - no subscription checks needed
 import {
   RCR30Error,
@@ -432,6 +433,29 @@ export function RCR30Page() {
       // Silently fail - user can still manually save if needed
     }
   }, [currentAppointmentId, selectedPatientProfile, selectedPatient, selectedTemplate]);
+
+  /**
+   * =====================================
+   * HANDLE PRONTUÁRIO UPDATE FROM EXAM IMAGE
+   * =====================================
+   *
+   * Called when an exam image is processed and merged with the prontuário.
+   * Updates the displayed prontuário and auto-saves the changes.
+   */
+  const handleProntuarioUpdated = useCallback(async (updatedProntuario: string) => {
+    console.log('🔄 [EXAM IMAGE UPDATE] Prontuário updated with exam image');
+    console.log('📏 [EXAM IMAGE UPDATE] New length:', updatedProntuario.length);
+
+    // Update the displayed prontuário
+    setCompletedProntuario(updatedProntuario);
+
+    // Auto-save the updated prontuário
+    await autoSaveProntuario(updatedProntuario);
+
+    // Trigger background processing for the updated content
+    // This will extract any new medical data from the exam results
+    triggerBackgroundProcessing(updatedProntuario);
+  }, [autoSaveProntuario, triggerBackgroundProcessing]);
 
   // Handle patient selection and fetch medical data for existing patients
   const handlePatientSelection = useCallback(async (patient: PatientProfile | null) => {
@@ -963,6 +987,18 @@ export function RCR30Page() {
                   }
                 }}
               />
+            )}
+
+            {/* Exam Image Upload - Show after prontuário is completed */}
+            {(completedProntuario || currentStatus?.prontuario) && workflowState === 'completed' && (
+              <div className="mt-6">
+                <ExamImageUpload
+                  currentProntuario={completedProntuario || currentStatus?.prontuario || ''}
+                  appointmentId={currentAppointmentId || undefined}
+                  onProntuarioUpdated={handleProntuarioUpdated}
+                  disabled={false}
+                />
+              </div>
             )}
 
             {/* Transcription Display - Show transcript when available */}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 
 interface SimpleProntuarioProps {
@@ -42,7 +42,7 @@ export function SimpleProntuario({
     return prontuario?.prontuario_text || prontuario?.content || prontuario?.text || JSON.stringify(prontuario, null, 2);
   };
 
-  const [originalText] = useState(getInitialText());
+  const [originalText, setOriginalText] = useState(getInitialText());
   const [editableText, setEditableText] = useState(getInitialText());
 
   // New state for edit tracking and save functionality
@@ -50,6 +50,40 @@ export function SimpleProntuario({
   const [isSaving, setIsSaving] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(savedProntuarioId || null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Track previous prontuario to detect real changes
+  const prevProntuarioRef = useRef<any>(prontuario);
+
+  // Update internal state when prontuario prop changes (e.g., after exam image merge)
+  useEffect(() => {
+    // Only update if prontuario prop actually changed (not just re-rendered)
+    if (prontuario === prevProntuarioRef.current) {
+      return; // No change, skip update
+    }
+
+    // Extract text from the prontuario prop
+    let newText = '';
+    if (typeof prontuario === 'string') {
+      newText = prontuario;
+    } else {
+      newText = prontuario?.prontuario_text || prontuario?.content || prontuario?.text || JSON.stringify(prontuario, null, 2);
+    }
+
+    console.log('🔄 [SIMPLE PRONTUARIO] Prontuario prop changed, updating display:', {
+      newLength: newText.length,
+      preview: newText.substring(0, 100)
+    });
+
+    // Always update when prontuario prop changes
+    if (newText) {
+      setOriginalText(newText);
+      setEditableText(newText);
+      setHasUnsavedChanges(false); // Reset unsaved changes flag
+    }
+
+    // Update ref for next comparison
+    prevProntuarioRef.current = prontuario;
+  }, [prontuario]); // Only watch prontuario prop
 
   // Track changes to textarea
   const handleTextChange = (newText: string) => {
