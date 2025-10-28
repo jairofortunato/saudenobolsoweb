@@ -53,6 +53,22 @@ input::placeholder, textarea::placeholder {
   font-style: normal;
 }
 
+/* Petrona font normal weight for titles */
+.font-petrona-normal {
+  font-family: "Petrona", serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+}
+
+/* Petrona font italic normal weight */
+.font-petrona-italic {
+  font-family: "Petrona", serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: italic;
+}
+
 /* Geist regular font utility class */
 .geist-regular {
   font-family: "Geist", sans-serif;

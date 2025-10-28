@@ -10,7 +10,9 @@ export default function Home() {
   const { user, profile } = useAuth();
   const router = useRouter();
   const [scrollProgress, setScrollProgress] = useState({ line1: 0, line2: 0, line3: 0 });
+  const [shouldLoadVideo, setShouldLoadVideo] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
 
   // Redirect all authenticated users to ProntoDoc RCR-30 page
   useEffect(() => {
@@ -58,6 +60,24 @@ export default function Home() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Lazy load video when it comes into view
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setShouldLoadVideo(true);
+        }
+      },
+      { threshold: 0.1, rootMargin: '50px' } // Load when 10% visible or 50px before
+    );
+
+    if (videoContainerRef.current) {
+      observer.observe(videoContainerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
   // Helper function to get color based on progress
   const getTextColor = (progress: number) => {
     // Interpolate between slate-300 (#CBD5E1) and slate-900 (#0F172A)
@@ -95,9 +115,16 @@ export default function Home() {
                   <Button variant="outline" size="sm" className="bg-white/80 hover:bg-white">Entrar</Button>
                 </Link>
                 <Link href="/signup">
-                  <Button size="sm" className="bg-gradient-to-r from-slate-500 to-slate-600 hover:from-slate-600 hover:to-slate-700 text-white border-0">
-                    Começar
-                  </Button>
+                  <button
+                    className="px-6 py-2 text-sm font-medium text-white rounded-[16px] transition-all duration-300 ease-out
+                      bg-gradient-to-b from-[#5B9EE8] to-[#4F7FD9]
+                      shadow-[0_4px_12px_rgba(79,127,217,0.3),0_2px_6px_rgba(79,127,217,0.2)]
+                      hover:shadow-[0_8px_20px_rgba(79,127,217,0.4),0_4px_10px_rgba(79,127,217,0.3)]
+                      hover:-translate-y-0.5
+                      active:translate-y-0"
+                  >
+                    Criar Conta
+                  </button>
                 </Link>
               </>
             ) : (
@@ -106,9 +133,16 @@ export default function Home() {
                   <Button variant="outline" size="sm" className="bg-white/80 hover:bg-white">Entrar</Button>
                 </Link>
                 <Link href="/signup">
-                  <Button size="sm" className="bg-gradient-to-r from-slate-500 to-slate-600 hover:from-slate-600 hover:to-slate-700 text-white border-0">
-                    Começar
-                  </Button>
+                  <button
+                    className="px-6 py-2 text-sm font-medium text-white rounded-[16px] transition-all duration-300 ease-out
+                      bg-gradient-to-b from-[#5B9EE8] to-[#4F7FD9]
+                      shadow-[0_4px_12px_rgba(79,127,217,0.3),0_2px_6px_rgba(79,127,217,0.2)]
+                      hover:shadow-[0_8px_20px_rgba(79,127,217,0.4),0_4px_10px_rgba(79,127,217,0.3)]
+                      hover:-translate-y-0.5
+                      active:translate-y-0"
+                  >
+                    Criar Conta
+                  </button>
                 </Link>
               </>
             )}
@@ -131,40 +165,59 @@ export default function Home() {
         <div className="relative">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-20 md:pt-12 md:pb-24">
           <section className="text-center">
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white mb-8 leading-tight">
-              Ganhe tempo,
+            <h1 className="font-petrona-normal text-5xl md:text-7xl lg:text-8xl tracking-tight text-white mb-8 leading-tight">
+              Ganhe <span className="font-petrona-italic">tempo</span>,
               <br />
-              <span className="italic font-serif">foque no paciente.</span>
+              foque no <span className="font-petrona-italic">paciente</span>.
             </h1>
             <p className="text-base md:text-lg text-white/90 max-w-2xl mx-auto mb-10 leading-relaxed">
-              Seu assistente de IA capturando notas, resumos e acompanhamentos
-              <br />
-              enquanto você atende. Ao seu lado enquanto o atendimento flui.
+              Seus Prontuários Prontos em Segundos, Direto no WhatsApp.
             </p>
 
             {/* CTA Button */}
             <div className="flex justify-center mb-16">
               <Link href="/signup">
-                <Button
-                  size="lg"
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-base rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+                <button
+                  className="group relative px-8 py-4 text-lg font-medium text-white rounded-[20px] transition-all duration-300 ease-out
+                    bg-gradient-to-b from-[#5B9EE8] to-[#4F7FD9]
+                    shadow-[0_8px_24px_rgba(79,127,217,0.4),0_4px_12px_rgba(79,127,217,0.3)]
+                    hover:shadow-[0_16px_40px_rgba(79,127,217,0.5),0_8px_20px_rgba(79,127,217,0.4)]
+                    hover:-translate-y-1
+                    active:translate-y-0"
                 >
-                  <span className="mr-2">▶</span> Começar ProntoDoc gratuitamente
-                </Button>
+                  Teste Gratis
+                </button>
               </Link>
             </div>
 
-            {/* Video Placeholder */}
-            <div className="max-w-5xl mx-auto mb-20">
-              <div className="relative bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-2xl aspect-video flex items-center justify-center border border-slate-700/50">
-                <div className="text-center">
-                  <div className="w-20 h-20 mx-auto mb-4 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm">
-                    <svg className="w-10 h-10 text-white/70" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" />
-                    </svg>
+            {/* Hero Video */}
+            <div ref={videoContainerRef} className="max-w-5xl mx-auto mb-20">
+              <div className="relative rounded-2xl shadow-2xl overflow-hidden aspect-video bg-gradient-to-br from-slate-800 to-slate-900">
+                {shouldLoadVideo ? (
+                  <video
+                    className="w-full h-full object-cover"
+                    controls
+                    playsInline
+                    muted
+                    autoPlay
+                    loop
+                    preload="metadata"
+                  >
+                    <source src="/herolow.mp4" type="video/mp4" />
+                    <p className="text-white/60 text-sm p-4">Seu navegador não suporta vídeos HTML5.</p>
+                  </video>
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-20 h-20 mx-auto mb-4 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm">
+                        <svg className="w-10 h-10 text-white/70" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" />
+                        </svg>
+                      </div>
+                      <p className="text-white/60 text-sm font-medium">Carregando vídeo...</p>
+                    </div>
                   </div>
-                  <p className="text-white/60 text-sm font-medium">Vídeo será inserido aqui</p>
-                </div>
+                )}
               </div>
             </div>
 
@@ -173,7 +226,7 @@ export default function Home() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
                 {/* Feature 1 - Audio Recording */}
                 <div>
-                  <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-4">
+                  <h2 className="font-petrona-normal text-2xl md:text-3xl text-slate-900 mb-4">
                     Grave áudio da consulta
                   </h2>
                   <p className="text-base md:text-lg text-slate-700 mb-6 leading-relaxed">
@@ -214,7 +267,7 @@ export default function Home() {
 
                 {/* Feature 2 - Photo Upload */}
                 <div>
-                  <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-4">
+                  <h2 className="font-petrona-normal text-2xl md:text-3xl text-slate-900 mb-4">
                     Envie fotos dos exames
                   </h2>
                   <p className="text-base md:text-lg text-slate-700 mb-6 leading-relaxed">
@@ -272,7 +325,11 @@ export default function Home() {
         <section ref={sectionRef} className="py-32 bg-gradient-to-b from-white via-[#E3E7F1] to-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-5xl">
-              <h2 className="text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-bold leading-tight mb-12">
+              <p className="text-2xl md:text-3xl text-slate-900 mb-8">
+                Você não precisa anotar o que o paciente fala.
+              </p>
+
+              <h2 className="font-petrona-normal text-4xl md:text-5xl lg:text-6xl leading-tight mb-12">
                 <span
                   style={{
                     color: getTextColor(scrollProgress.line1),
@@ -303,97 +360,86 @@ export default function Home() {
 
               <div className="mt-12">
                 <Link href="/signup">
-                  <Button
-                    size="lg"
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-base rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+                  <button
+                    className="group relative px-8 py-4 text-lg font-medium text-white rounded-[20px] transition-all duration-300 ease-out
+                      bg-gradient-to-b from-[#5B9EE8] to-[#4F7FD9]
+                      shadow-[0_8px_24px_rgba(79,127,217,0.4),0_4px_12px_rgba(79,127,217,0.3)]
+                      hover:shadow-[0_16px_40px_rgba(79,127,217,0.5),0_8px_20px_rgba(79,127,217,0.4)]
+                      hover:-translate-y-1
+                      active:translate-y-0"
                   >
-                    <span className="mr-2">▶</span> Começar gratuitamente
-                  </Button>
+                    Teste Gratis
+                  </button>
                 </Link>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Section 4 - Privacy Features */}
-        <section className="py-32 bg-white">
+        {/* CTA Section */}
+        <section className="py-20 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center">
+              <h2 className="font-petrona-normal text-4xl md:text-5xl lg:text-6xl text-slate-900 mb-8">
+                Teste Grátis 5 Consultas e Economize Seu Tempo Hoje.
+              </h2>
+              <Link href="/signup">
+                <button
+                  className="group relative px-8 py-4 text-lg font-medium text-white rounded-[20px] transition-all duration-300 ease-out
+                    bg-gradient-to-b from-[#5B9EE8] to-[#4F7FD9]
+                    shadow-[0_8px_24px_rgba(79,127,217,0.4),0_4px_12px_rgba(79,127,217,0.3)]
+                    hover:shadow-[0_16px_40px_rgba(79,127,217,0.5),0_8px_20px_rgba(79,127,217,0.4)]
+                    hover:-translate-y-1
+                    active:translate-y-0"
+                >
+                  Teste Gratis
+                </button>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 4 - Safety & Features */}
+        <section className="py-32 bg-gradient-to-b from-white to-slate-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Section Header */}
-            <div className="mb-16">
+            <div className="mb-16 text-center">
               <p className="text-blue-600 text-sm md:text-base font-semibold mb-4">
-                Completamente discreto
+                Segurança e Confiabilidade
               </p>
-              <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 max-w-4xl">
+              <h2 className="font-petrona-normal text-4xl md:text-5xl lg:text-6xl text-slate-900 max-w-4xl mx-auto mb-12">
                 Atenda com confiança, seus dados são 100% privados e seguros.
               </h2>
             </div>
 
-            {/* Three Feature Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Card 1 - LGPD Compliant */}
-              <div className="flex flex-col">
-                <div className="bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl p-8 mb-6 aspect-square flex items-center justify-center border border-slate-300">
-                  <div className="text-center">
-                    <div className="w-20 h-20 mx-auto mb-4 bg-green-500 rounded-full flex items-center justify-center">
-                      <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                      </svg>
-                    </div>
-                    <p className="text-slate-600 text-sm font-medium">Placeholder do vídeo</p>
+            {/* Single Column Content */}
+            <div className="max-w-4xl mx-auto space-y-12">
+              {/* Feature 1 */}
+              <div className="text-center">
+                <div className="mb-6">
+                  <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
+                    <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
                   </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">
-                    Conforme a LGPD.
-                  </h3>
-                  <p className="text-slate-600 leading-relaxed">
-                    ProntoDoc segue rigorosamente a Lei Geral de Proteção de Dados, garantindo que todas as informações dos pacientes sejam tratadas com máxima segurança.
-                  </p>
-                </div>
+                <p className="text-xl md:text-2xl text-slate-700 leading-relaxed">
+                  Você não precisa de mais um sistema. Converse naturalmente gravando pelo whatsapp que cuidamos do resto.
+                </p>
               </div>
 
-              {/* Card 2 - Encrypted Data */}
-              <div className="flex flex-col">
-                <div className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl p-8 mb-6 aspect-square flex items-center justify-center border border-blue-300">
-                  <div className="text-center">
-                    <div className="w-20 h-20 mx-auto mb-4 bg-blue-600 rounded-full flex items-center justify-center">
-                      <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                    </div>
-                    <p className="text-slate-600 text-sm font-medium">Placeholder do vídeo</p>
+              {/* Feature 2 */}
+              <div className="text-center">
+                <div className="mb-6">
+                  <div className="w-20 h-20 mx-auto bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-lg">
+                    <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
                   </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">
-                    Dados criptografados.
-                  </h3>
-                  <p className="text-slate-600 leading-relaxed">
-                    Todas as informações são criptografadas de ponta a ponta. Seus prontuários e dados dos pacientes nunca são compartilhados ou acessados por terceiros.
-                  </p>
-                </div>
-              </div>
-
-              {/* Card 3 - You Control Your Data */}
-              <div className="flex flex-col">
-                <div className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl p-8 mb-6 aspect-square flex items-center justify-center border border-purple-300">
-                  <div className="text-center">
-                    <div className="w-20 h-20 mx-auto mb-4 bg-purple-600 rounded-full flex items-center justify-center">
-                      <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </div>
-                    <p className="text-slate-600 text-sm font-medium">Placeholder do vídeo</p>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">
-                    Você controla seus dados.
-                  </h3>
-                  <p className="text-slate-600 leading-relaxed">
-                    Você tem controle total sobre suas informações. Exporte, edite ou delete seus dados quando quiser, sem burocracia.
-                  </p>
-                </div>
+                <p className="text-xl md:text-2xl text-slate-700 leading-relaxed">
+                  Testamos e iteramos nossos modelos em cenários do mundo real para garantir que a IA permaneça precisa, confiável e clinicamente sólida.
+                </p>
               </div>
             </div>
           </div>
