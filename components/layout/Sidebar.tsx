@@ -214,7 +214,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           {!isCollapsed && (
             <div className="flex items-center space-x-3">
               <Image
-                src="/prontodoclogo.png"
+                src="/logoblack.png"
                 alt="ProntoDoc"
                 width={140}
                 height={40}
@@ -284,7 +284,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         </nav>
 
         {/* Prontuários Section - Only for doctors */}
-        {isDoctor && (
+        {false && isDoctor && (
           <div className="flex-1 flex flex-col border-t border-slate-200/50 overflow-hidden">
             <div className="px-3 pt-4 pb-3 flex-shrink-0">
               <div className={cn("flex items-center justify-between", isCollapsed && "justify-center")}>

@@ -38,10 +38,10 @@ export interface InputProps
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ 
-    className, 
-    variant, 
-    size, 
+  ({
+    className,
+    variant,
+    size,
     type = "text",
     label,
     error,
@@ -50,9 +50,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     rightIcon,
     loading = false,
     id,
-    ...props 
+    ...props
   }, ref) => {
-    const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    const reactId = React.useId();
+    const inputId = id || `input-${reactId}`;
     const effectiveVariant = error ? "error" : variant;
 
     return (

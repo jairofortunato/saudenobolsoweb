@@ -263,18 +263,52 @@ export function useAuthState(): AuthContextType {
     }
   }
   
+  const signInWithGoogle = async (): Promise<AuthResult> => {
+    try {
+      setState((prev: AuthState) => ({ ...prev, loading: true, error: null }))
+
+      console.log('🔧 Starting Google OAuth signin...')
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
+      })
+
+      if (error) {
+        console.error('❌ Google signin error:', error)
+        setState((prev: AuthState) => ({ ...prev, loading: false, error: error.message }))
+        return { success: false, error: error.message }
+      }
+
+      console.log('✅ Google OAuth initiated - redirecting to Google...')
+      // Note: User will be redirected to Google for authentication
+      // They will return to /auth/callback which exchanges code for session
+      return { success: true }
+    } catch (error) {
+      console.error('❌ Google signin error:', error)
+      setState((prev: AuthState) => ({ ...prev, loading: false, error: error instanceof Error ? error.message : 'Unknown error' }))
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  }
+
   const signOut = async (): Promise<void> => {
     try {
       setState((prev: AuthState) => ({ ...prev, loading: true, error: null }))
-      
+
       const { error } = await supabase.auth.signOut()
-      
+
       if (error) {
         console.error('❌ Signout error:', error)
         setState((prev: AuthState) => ({ ...prev, loading: false, error: error.message }))
         throw new Error(error.message)
       }
-      
+
       console.log('✅ Signout successful')
       setState({ user: null, session: null, profile: null, loading: false, error: null })
     } catch (error) {
@@ -332,6 +366,7 @@ export function useAuthState(): AuthContextType {
     ...state,
     signUp,
     signIn,
+    signInWithGoogle,
     signOut,
     updateProfile,
     refreshProfile

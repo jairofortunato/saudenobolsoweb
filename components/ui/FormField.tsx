@@ -13,7 +13,7 @@ export interface FormFieldProps {
 }
 
 const FormField = React.forwardRef<HTMLDivElement, FormFieldProps>(
-  ({ 
+  ({
     label,
     error,
     helperText,
@@ -22,9 +22,10 @@ const FormField = React.forwardRef<HTMLDivElement, FormFieldProps>(
     className,
     labelClassName,
     fieldId,
-    ...props 
+    ...props
   }, ref) => {
-    const generatedId = fieldId || `field-${Math.random().toString(36).substr(2, 9)}`;
+    const reactId = React.useId();
+    const generatedId = fieldId || `field-${reactId}`;
 
     return (
       <div 

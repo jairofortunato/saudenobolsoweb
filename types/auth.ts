@@ -25,6 +25,7 @@ export interface AuthState {
 export interface AuthContextType extends AuthState {
   signUp: (data: SignUpData) => Promise<AuthResult>
   signIn: (data: SignInData) => Promise<AuthResult>
+  signInWithGoogle: () => Promise<AuthResult>
   signOut: () => Promise<void>
   updateProfile: (data: Partial<Profile>) => Promise<AuthResult>
   refreshProfile: () => Promise<void>

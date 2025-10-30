@@ -2,6 +2,13 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Skip middleware for auth callback to prevent interference with OAuth flow
+  if (pathname.startsWith('/auth/callback')) {
+    return NextResponse.next()
+  }
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -74,8 +81,6 @@ export async function middleware(request: NextRequest) {
       console.log('Middleware: Invalid session')
     }
   }
-
-  const { pathname } = request.nextUrl
 
   // Public routes that don't require authentication
   const publicRoutes = [
