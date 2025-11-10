@@ -668,6 +668,24 @@ export function RCR30Page() {
       });
 
       if (!response.ok) {
+        const errorData = await response.json();
+
+        // Handle consultation limit reached (402 Payment Required)
+        if (response.status === 402) {
+          handleError({
+            type: 'validation',
+            code: 'CONSULTATION_LIMIT_REACHED',
+            message: errorData.message || 'You have reached your free consultation limit.',
+            retryable: false,
+            metadata: {
+              consultations_used: errorData.consultations_used,
+              consultations_limit: errorData.consultations_limit,
+              upgrade_required: errorData.upgrade_required
+            }
+          });
+          return;
+        }
+
         throw new Error(`Failed to create appointment: ${response.statusText}`);
       }
 
@@ -838,6 +856,22 @@ export function RCR30Page() {
         // 🔄 BACKGROUND AI PROCESSING - Extract structured medical data
         // This runs silently in the background without blocking the UI
         triggerBackgroundProcessing(currentStatus.prontuario);
+
+        // 📊 INCREMENT CONSULTATION COUNT - Track usage for free tier
+        // This increments the consultation counter in usage_tracking table
+        // Professional tier users return success without incrementing (unlimited)
+        fetch('/api/subscription/increment-usage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        })
+          .then(res => res.json())
+          .then(data => {
+            console.log('✅ [USAGE TRACKING] Consultation counted:', data);
+          })
+          .catch(err => {
+            console.error('❌ [USAGE TRACKING] Failed to increment usage:', err);
+            // Silent failure - doesn't affect user experience
+          });
       }
       setWorkflowState('completed');
 

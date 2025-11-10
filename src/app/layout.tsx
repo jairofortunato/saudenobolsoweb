@@ -3,7 +3,7 @@ import { AuthProvider } from "../contexts/AuthContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Saúde no Bolso",
+  title: "Prontodoc",
   description: "Sistema de gestão de prontuários médicos digitais com acesso de emergência",
 };
 

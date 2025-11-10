@@ -77,7 +77,7 @@ export default function PricingPage() {
               <div className="flex items-start">
                 <span className="text-black mr-2">•</span>
                 <span className="text-gray-700">
-                  <strong className="text-black">3 consultas</strong> de teste
+                  <strong className="text-black">5 consultas</strong> gratuitas
                 </span>
               </div>
               <div className="flex items-start">

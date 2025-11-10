@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
           user_id: user.id,
           tier: 'free',
           status: 'active',
-          prontuarios_limit: 3,
+          prontuarios_limit: 5, // Changed from 3 to 5
           minutes_included: 0,
           minutes_balance: 0,
           minutes_used: 0,
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
           minutes_included: 0,
           minutes_purchased: 0,
           prontuarios_used: 0,
-          prontuarios_limit: 3,
+          prontuarios_limit: 5, // Changed from 3 to 5
         },
       });
     }
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
       }
 
       const prontuarios_used = usageTracking?.consultations_count || 0;
-      const prontuarios_limit = subscription.prontuarios_limit || 3;
+      const prontuarios_limit = subscription.prontuarios_limit || 5;
 
       return NextResponse.json({
         subscription,

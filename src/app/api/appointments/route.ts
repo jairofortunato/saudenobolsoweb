@@ -62,6 +62,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check consultation limit for free tier users
+    const { data: subscription } = await supabase
+      .from('subscriptions')
+      .select('tier, prontuarios_limit, current_period_start, current_period_end')
+      .eq('user_id', user.id)
+      .single();
+
+    // Treat users with no subscription as free tier (default)
+    // Only professional tier gets unlimited consultations
+    const isProfessional = subscription?.tier === 'professional';
+
+    if (!isProfessional) {
+      // Get current period's usage
+      const { data: usage } = await supabase
+        .from('usage_tracking')
+        .select('consultations_count')
+        .eq('user_id', user.id)
+        .gte('period_end', new Date().toISOString())
+        .lte('period_start', new Date().toISOString())
+        .single();
+
+      const consultationsUsed = usage?.consultations_count || 0;
+      const limit = subscription?.prontuarios_limit || 5; // Default to 5 if no subscription
+
+      if (consultationsUsed >= limit) {
+        return NextResponse.json(
+          {
+            error: 'Consultation limit reached',
+            message: `You have used all ${limit} free consultations. Please upgrade to Professional for unlimited consultations.`,
+            consultations_used: consultationsUsed,
+            consultations_limit: limit,
+            upgrade_required: true
+          },
+          { status: 402 } // Payment Required
+        );
+      }
+    }
+    // Professional tier: unlimited consultations, no check needed
+
     // Parse request body
     const body = await request.json();
     const { patient_name, language = 'pt-BR', template_id } = body;

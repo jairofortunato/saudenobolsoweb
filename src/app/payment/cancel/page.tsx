@@ -23,7 +23,7 @@ export default function PaymentCancelPage() {
         <div className="border border-gray-300 p-4 mb-6 bg-gray-50">
           <p className="text-sm text-gray-700">
             Você ainda pode usar suas{' '}
-            <strong className="text-black">3 consultas gratuitas</strong> para
+            <strong className="text-black">5 consultas gratuitas</strong> para
             testar o ProntoDoc antes de assinar.
           </p>
         </div>

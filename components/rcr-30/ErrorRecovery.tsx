@@ -79,11 +79,11 @@ export function ErrorRecovery({
           buttonColor: 'bg-purple-500 hover:bg-purple-600'
         };
       case 'validation':
-        // Special handling for upgrade required
-        if (error.code === 'UPGRADE_REQUIRED') {
+        // Special handling for consultation limit and upgrade required
+        if (error.code === 'UPGRADE_REQUIRED' || error.code === 'CONSULTATION_LIMIT_REACHED') {
           return {
             icon: '⭐',
-            title: 'Upgrade to Professional',
+            title: 'Limite de Consultas Atingido',
             bgColor: 'bg-gradient-to-r from-blue-50 to-purple-50',
             borderColor: 'border-blue-300',
             textColor: 'text-blue-900',
@@ -140,12 +140,16 @@ export function ErrorRecovery({
   const getRecoveryActions = (error: RCR30Error): string[] => {
     const actions: string[] = [];
 
-    // Special handling for upgrade required
-    if (error.code === 'UPGRADE_REQUIRED') {
+    // Special handling for consultation limit and upgrade required
+    if (error.code === 'UPGRADE_REQUIRED' || error.code === 'CONSULTATION_LIMIT_REACHED') {
+      const used = error.metadata?.consultations_used || 5;
+      const limit = error.metadata?.consultations_limit || 5;
+
+      actions.push(`📊 Você usou ${used}/${limit} consultas gratuitas`);
       actions.push('✨ Consultas ilimitadas com o plano Professional');
-      actions.push('💰 Apenas R$ 190/mês (5.240 minutos inclusos)');
-      actions.push('📊 Acompanhe seu histórico completo');
-      actions.push('🔄 Sem limite de prontuários');
+      actions.push('💰 Apenas R$ 190/mês');
+      actions.push('🎙️ Transcrições em tempo real');
+      actions.push('📋 Histórico completo de prontuários');
       return actions;
     }
 
@@ -224,8 +228,8 @@ export function ErrorRecovery({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
-          {error.code === 'UPGRADE_REQUIRED' ? (
-            // Special upgrade button for UPGRADE_REQUIRED
+          {(error.code === 'UPGRADE_REQUIRED' || error.code === 'CONSULTATION_LIMIT_REACHED') ? (
+            // Special upgrade button for consultation limit reached
             <a
               href="/pricing"
               className={`px-6 py-3 text-white rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg ${config.buttonColor}`}
