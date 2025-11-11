@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "dev:turbo": "next dev --turbopack",
+    "dev": "next dev --turbopack",
+    "dev:slow": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "clean": "rm -rf .next node_modules/.cache"
   },
   "dependencies": {
     "@stripe/stripe-js": "^8.0.0",
@@ -17,6 +18,7 @@
     "@supabase/supabase-js": "^2.50.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dunder-proto": "^1.0.1",
     "lucide-react": "^0.544.0",
     "next": "15.3.5",
     "openai": "^5.11.0",

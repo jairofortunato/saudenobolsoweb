@@ -15,47 +15,32 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get subscription details FIRST (faster than RPC function)
+    // Get user profile for free consultation tracking
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('free_consultations_used, free_consultations_limit')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching profile:', profileError);
+      return NextResponse.json(
+        { error: 'Failed to fetch profile', details: profileError.message },
+        { status: 500 }
+      );
+    }
+
+    // Check if user has a paid subscription
     const { data: subscription, error: subError } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('user_id', user.id)
       .single();
 
-    // If no subscription exists, create a free one immediately
+    // If no paid subscription exists, return free tier info from profile
     if (!subscription || subError?.code === 'PGRST116') {
-      console.log('No subscription found for user, creating free subscription...');
-
-      const { data: newSubscription, error: createError } = await supabase
-        .from('subscriptions')
-        .insert({
-          user_id: user.id,
-          tier: 'free',
-          status: 'active',
-          prontuarios_limit: 5, // Changed from 3 to 5
-          minutes_included: 0,
-          minutes_balance: 0,
-          minutes_used: 0,
-          cost_per_minute: 0.036,
-          allow_additional_minutes: false,
-          stripe_customer_id: `cus_free_${user.id}`,
-          current_period_start: new Date().toISOString(),
-          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-        })
-        .select()
-        .single();
-
-      if (createError) {
-        console.error('Error creating subscription:', createError);
-        return NextResponse.json(
-          { error: 'Failed to create subscription', details: createError.message },
-          { status: 500 }
-        );
-      }
-
-      // Return immediately for new user with free tier
       return NextResponse.json({
-        subscription: newSubscription,
+        subscription: null,
         balance: {
           tier: 'free',
           minutes_balance: 0,
@@ -63,8 +48,8 @@ export async function GET(request: NextRequest) {
           low_balance_alert: false,
           minutes_included: 0,
           minutes_purchased: 0,
-          prontuarios_used: 0,
-          prontuarios_limit: 5, // Changed from 3 to 5
+          prontuarios_used: profile?.free_consultations_used || 0,
+          prontuarios_limit: profile?.free_consultations_limit || 5,
         },
       });
     }
@@ -78,24 +63,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // For FREE tier - simple and fast query
+    // For FREE tier with subscription record (legacy)
+    // This shouldn't happen with new users, but handle it for backward compatibility
     if (subscription.tier === 'free') {
-      // Get usage tracking for consultation count
-      const { data: usageTracking, error: usageError } = await supabase
-        .from('usage_tracking')
-        .select('consultations_count')
-        .eq('user_id', user.id)
-        .gte('period_end', new Date().toISOString())
-        .lte('period_start', new Date().toISOString())
-        .single();
-
-      if (usageError && usageError.code !== 'PGRST116') {
-        console.error('Error fetching usage tracking:', usageError);
-      }
-
-      const prontuarios_used = usageTracking?.consultations_count || 0;
-      const prontuarios_limit = subscription.prontuarios_limit || 5;
-
       return NextResponse.json({
         subscription,
         balance: {
@@ -105,8 +75,8 @@ export async function GET(request: NextRequest) {
           low_balance_alert: false,
           minutes_included: 0,
           minutes_purchased: 0,
-          prontuarios_used,
-          prontuarios_limit,
+          prontuarios_used: profile?.free_consultations_used || 0,
+          prontuarios_limit: profile?.free_consultations_limit || 5,
         },
       });
     }

@@ -29,6 +29,7 @@ import { UploadProgress } from './UploadProgress';
 import { ProcessingStatus } from './ProcessingStatus';
 import { SimpleProntuario } from './SimpleProntuario';
 import { ErrorRecovery } from './ErrorRecovery';
+import { PaywallModal } from './PaywallModal';
 import { TranscriptionDisplay } from './TranscriptionDisplay';
 import { ConsultationTemplateSelector } from '../doctor/ConsultationTemplateSelector';
 import { PatientSearchAndDisplay } from './PatientSearchAndDisplay';
@@ -98,6 +99,8 @@ export function RCR30Page() {
   const [patientMedicalData, setPatientMedicalData] = useState<any>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<ConsultationTemplate | null>(null);
   const [error, setError] = useState<RCR30Error | null>(null);
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
+  const [paywallData, setPaywallData] = useState<{ used: number; limit: number }>({ used: 0, limit: 5 });
 
   // Completed prontuario data
   const [completedProntuario, setCompletedProntuario] = useState<any | null>(null);
@@ -672,17 +675,12 @@ export function RCR30Page() {
 
         // Handle consultation limit reached (402 Payment Required)
         if (response.status === 402) {
-          handleError({
-            type: 'validation',
-            code: 'CONSULTATION_LIMIT_REACHED',
-            message: errorData.message || 'You have reached your free consultation limit.',
-            retryable: false,
-            metadata: {
-              consultations_used: errorData.consultations_used,
-              consultations_limit: errorData.consultations_limit,
-              upgrade_required: errorData.upgrade_required
-            }
+          // Show paywall modal instead of error component
+          setPaywallData({
+            used: errorData.consultations_used || 5,
+            limit: errorData.consultations_limit || 5
           });
+          setShowPaywallModal(true);
           return;
         }
 
@@ -985,8 +983,8 @@ export function RCR30Page() {
               <ProcessingStatus currentStatus={currentStatus} />
             )}
             
-            {/* Error Recovery */}
-            {error && workflowState === 'error' && (
+            {/* Error Recovery - Don't show for consultation limit errors (handled by PaywallModal) */}
+            {error && workflowState === 'error' && error.code !== 'CONSULTATION_LIMIT_REACHED' && (
               <ErrorRecovery
                 error={error}
                 onRetry={handleRetry}
@@ -1159,6 +1157,14 @@ export function RCR30Page() {
           </div>
         </div>
       </div>
+
+      {/* Paywall Modal */}
+      <PaywallModal
+        isOpen={showPaywallModal}
+        onClose={() => setShowPaywallModal(false)}
+        consultationsUsed={paywallData.used}
+        consultationsLimit={paywallData.limit}
+      />
     </div>
   );
 }

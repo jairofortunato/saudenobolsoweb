@@ -88,7 +88,7 @@ export function useMinuteBalance() {
     message?: string;
     upgradeRequired: boolean;
   } => {
-    if (!balance || !subscription) {
+    if (!balance) {
       return {
         canCreate: false,
         message: 'Carregando informações da assinatura...',
@@ -96,10 +96,10 @@ export function useMinuteBalance() {
       };
     }
 
-    // Free tier check
-    if (subscription.tier === 'free') {
+    // Free tier check (no subscription or free tier subscription)
+    if (!subscription || subscription.tier === 'free' || balance.tier === 'free') {
       const prontuariosUsed = balance.prontuarios_used || 0;
-      const prontuariosLimit = balance.prontuarios_limit || 3;
+      const prontuariosLimit = balance.prontuarios_limit || 5;
 
       if (prontuariosUsed >= prontuariosLimit) {
         return {

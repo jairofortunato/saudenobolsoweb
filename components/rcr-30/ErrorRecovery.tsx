@@ -231,7 +231,7 @@ export function ErrorRecovery({
           {(error.code === 'UPGRADE_REQUIRED' || error.code === 'CONSULTATION_LIMIT_REACHED') ? (
             // Special upgrade button for consultation limit reached
             <a
-              href="/pricing"
+              href="/doctor/configuracoes"
               className={`px-6 py-3 text-white rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 shadow-lg ${config.buttonColor}`}
             >
               ⭐ Assinar Professional - R$ 190/mês

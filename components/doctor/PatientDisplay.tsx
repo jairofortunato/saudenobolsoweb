@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
+import {
   Button,
   BadgeToggleCard
 } from '../index';
-import { DoctorEmergencyModal } from './DoctorEmergencyModal';
 import { Medication, Allergy, Exam, Disease, Consultation } from '../../types/database';
 
 interface PatientProfile {
@@ -37,8 +36,6 @@ interface PatientDisplayProps {
 }
 
 export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDisplayProps) {
-  const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
-  
   // Edit/Delete state management
   const [editing, setEditing] = useState<string | null>(null);
   const [editCategory, setEditCategory] = useState<string | null>(null);
@@ -879,14 +876,6 @@ export function PatientDisplay({ patient, medicalData, onNewSearch }: PatientDis
           )}
         </div>
       </div>
-
-      {/* Emergency Modal */}
-      <DoctorEmergencyModal
-        patient={patient}
-        medicalData={medicalData}
-        isOpen={isEmergencyModalOpen}
-        onClose={() => setIsEmergencyModalOpen(false)}
-      />
     </div>
   );
 } 

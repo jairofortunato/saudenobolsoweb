@@ -7,7 +7,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '../ui/Button';
 import { cn } from '@/lib/utils';
-import { ProntuariosList } from './ProntuariosList';
 
 export interface SidebarProps {
   className?: string;
@@ -294,10 +293,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   </h3>
                 )}
               </div>
-            </div>
-
-            <div className="px-3 pb-4 overflow-y-auto flex-1">
-              <ProntuariosList collapsed={isCollapsed} />
             </div>
           </div>
         )}

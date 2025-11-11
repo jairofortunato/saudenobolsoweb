@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import MinuteBalance from '@/components/MinuteBalance';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
@@ -113,16 +112,8 @@ export default function ConfiguracoesPage() {
     <DashboardLayout title="Configurações" className="font-petrona">
       <div className="p-6 m-4 geist-regular">
         <div className="bg-white/30 backdrop-blur-md rounded-2xl border border-slate-200/50 p-6">
-          {/* Minute Balance Section */}
-          <div className="mb-8">
-            <h2 className="text-lg font-medium text-black mb-4 font-geist">
-              Saldo de Minutos
-            </h2>
-            <MinuteBalance />
-          </div>
-
           {/* Subscription Management */}
-          <div className="border-t border-gray-300 pt-8 mb-8">
+          <div className="mb-8">
             <h2 className="text-lg font-medium text-black mb-6 font-geist">
               Gerenciar Assinatura
             </h2>
@@ -237,7 +228,7 @@ export default function ConfiguracoesPage() {
                     <div className="flex items-start">
                       <span className="text-black mr-2">•</span>
                       <span className="text-gray-700">
-                        <strong className="text-black">3 consultas</strong> de teste
+                        <strong className="text-black">5 consultas</strong> gratuitas
                       </span>
                     </div>
                     <div className="flex items-start">

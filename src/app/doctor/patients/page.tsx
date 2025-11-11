@@ -71,7 +71,7 @@ export default function DoctorPatientsPage() {
   // Redirect if not a doctor
   useEffect(() => {
     if (profile && profile.role !== 'doctor') {
-      router.push('/dashboard');
+      router.push('/doctor/prontodoc-rcr30');
       return;
     }
     if (profile) {

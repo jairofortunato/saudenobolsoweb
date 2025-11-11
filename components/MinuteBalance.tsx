@@ -61,7 +61,7 @@ export default function MinuteBalance() {
   // Free tier display
   if (balance.tier === 'free') {
     const used = balance.prontuarios_used || 0;
-    const limit = balance.prontuarios_limit || 3;
+    const limit = balance.prontuarios_limit || 5;
     const remaining = Math.max(0, limit - used);
 
     return (

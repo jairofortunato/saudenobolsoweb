@@ -30,17 +30,17 @@ export default function PaymentCancelPage() {
 
         <div className="space-y-3">
           <button
-            onClick={() => router.push('/pricing')}
+            onClick={() => router.push('/doctor/configuracoes')}
             className="w-full bg-black text-white hover:bg-gray-800 py-3 px-4 border border-black font-medium transition-colors text-sm"
           >
             Ver Planos Novamente
           </button>
 
           <button
-            onClick={() => router.push('/doctor/dashboard')}
+            onClick={() => router.push('/doctor/prontodoc-rcr30')}
             className="w-full bg-white text-black hover:bg-gray-50 py-3 px-4 border border-gray-300 font-medium transition-colors text-sm"
           >
-            Voltar ao Dashboard
+            Voltar ao ProntoDoc
           </button>
         </div>
 

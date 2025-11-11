@@ -130,7 +130,7 @@ export default function PatientDetailPage() {
 
   useEffect(() => {
     if (!profile || profile.role !== 'doctor') {
-      router.push('/dashboard');
+      router.push('/doctor/prontodoc-rcr30');
       return;
     }
 
