@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/lib/supabase';
 
 interface SubscriptionStatus {
   tier: string;
@@ -16,7 +16,7 @@ export default function ConfiguracoesPage() {
   const [loading, setLoading] = useState(false);
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
 
   useEffect(() => {
     fetchSubscriptionStatus();
