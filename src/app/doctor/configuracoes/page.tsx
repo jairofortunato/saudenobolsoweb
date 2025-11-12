@@ -90,7 +90,41 @@ export default function ConfiguracoesPage() {
       if (!response.ok) {
         const errorData = await response.json();
         console.error('Portal error:', errorData);
-        throw new Error('Failed to create portal session');
+
+        // Handle specific error cases
+        if (errorData.mode_mismatch) {
+          if (errorData.is_test_customer) {
+            alert(
+              '⚠️ Assinatura de Teste Detectada\n\n' +
+              'Esta assinatura foi criada em modo de teste e não pode ser gerenciada no ambiente de produção.\n\n' +
+              'Para usar o ProntoDoc em produção, por favor:\n' +
+              '1. Crie uma nova assinatura com um cartão de crédito real\n' +
+              '2. As assinaturas de teste são apenas para desenvolvimento\n\n' +
+              'Entre em contato com o suporte se tiver dúvidas.'
+            );
+          } else {
+            alert(
+              '⚠️ Incompatibilidade de Ambiente\n\n' +
+              errorData.error || 'Erro ao acessar portal de gerenciamento.\n\n' +
+              'Entre em contato com o suporte.'
+            );
+          }
+        } else if (response.status === 404) {
+          alert(
+            '⚠️ Cliente Não Encontrado\n\n' +
+            'Sua assinatura não foi encontrada no Stripe.\n\n' +
+            'Isso pode acontecer se:\n' +
+            '- A assinatura foi criada em modo de teste\n' +
+            '- Houve um problema na sincronização\n\n' +
+            'Por favor, crie uma nova assinatura ou entre em contato com o suporte.'
+          );
+        } else {
+          alert(
+            'Erro ao abrir portal de gerenciamento\n\n' +
+            (errorData.error || 'Tente novamente ou entre em contato com o suporte.')
+          );
+        }
+        return;
       }
 
       const { url } = await response.json();
@@ -100,7 +134,11 @@ export default function ConfiguracoesPage() {
       }
     } catch (error) {
       console.error('Error opening customer portal:', error);
-      alert('Erro ao abrir portal de gerenciamento. Tente novamente.');
+      alert(
+        'Erro ao abrir portal de gerenciamento\n\n' +
+        'Verifique sua conexão e tente novamente.\n' +
+        'Se o problema persistir, entre em contato com o suporte.'
+      );
     } finally {
       setLoading(false);
     }
