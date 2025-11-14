@@ -120,11 +120,11 @@ export function RecordingControls({
             {mirrored.map((level, idx) => (
               <div key={idx} className="flex flex-col items-center justify-center gap-1 w-2 md:w-2.5 h-full">
                 <div
-                  className="w-full rounded-full transition-all duration-75 bg-black"
+                  className="w-full rounded-full transition-all duration-75 bg-[#0055FF]"
                   style={{ height: `${Math.round(level * 46)}%` }}
                 />
                 <div
-                  className="w-full rounded-full transition-all duration-75 bg-black"
+                  className="w-full rounded-full transition-all duration-75 bg-[#0055FF]"
                   style={{ height: `${Math.round(level * 46)}%` }}
                 />
               </div>
@@ -222,9 +222,9 @@ export function RecordingControls({
                 disabled={disabled}
                 className={`pointer-events-auto rounded-full shadow-2xl transition-all duration-200 ease-out flex items-center justify-center text-white ${
                   disabled
-                    ? 'bg-gray-400 cursor-not-allowed' 
+                    ? 'bg-gray-400 cursor-not-allowed'
                     : showSetupState
-                      ? 'bg-black hover:bg-gray-800 active:scale-95 hover:scale-105'
+                      ? 'bg-[#0055FF] hover:bg-[#0044DD] active:scale-95 hover:scale-105'
                       : 'bg-blue-500 hover:bg-blue-600 active:scale-95 hover:scale-105'
                 } w-28 h-28 md:w-36 md:h-36`}
                 aria-label={showSetupState ? 'Iniciar gravação da consulta' : 'Iniciar gravação'}

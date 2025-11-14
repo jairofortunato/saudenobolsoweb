@@ -117,9 +117,9 @@ export default function Home() {
                 <Link href="/signup">
                   <button
                     className="px-6 py-2 text-sm font-medium text-white rounded-[16px] transition-all duration-300 ease-out
-                      bg-gradient-to-b from-[#5B9EE8] to-[#4F7FD9]
-                      shadow-[0_4px_12px_rgba(79,127,217,0.3),0_2px_6px_rgba(79,127,217,0.2)]
-                      hover:shadow-[0_8px_20px_rgba(79,127,217,0.4),0_4px_10px_rgba(79,127,217,0.3)]
+                      bg-gradient-to-b from-[#0055FF] to-[#0044DD]
+                      shadow-[0_4px_12px_rgba(0,85,255,0.3),0_2px_6px_rgba(0,85,255,0.2)]
+                      hover:shadow-[0_8px_20px_rgba(0,85,255,0.4),0_4px_10px_rgba(0,85,255,0.3)]
                       hover:-translate-y-0.5
                       active:translate-y-0"
                   >
@@ -135,9 +135,9 @@ export default function Home() {
                 <Link href="/signup">
                   <button
                     className="px-6 py-2 text-sm font-medium text-white rounded-[16px] transition-all duration-300 ease-out
-                      bg-gradient-to-b from-[#5B9EE8] to-[#4F7FD9]
-                      shadow-[0_4px_12px_rgba(79,127,217,0.3),0_2px_6px_rgba(79,127,217,0.2)]
-                      hover:shadow-[0_8px_20px_rgba(79,127,217,0.4),0_4px_10px_rgba(79,127,217,0.3)]
+                      bg-gradient-to-b from-[#0055FF] to-[#0044DD]
+                      shadow-[0_4px_12px_rgba(0,85,255,0.3),0_2px_6px_rgba(0,85,255,0.2)]
+                      hover:shadow-[0_8px_20px_rgba(0,85,255,0.4),0_4px_10px_rgba(0,85,255,0.3)]
                       hover:-translate-y-0.5
                       active:translate-y-0"
                   >
@@ -153,10 +153,10 @@ export default function Home() {
       {/* Decorative blue gradient ellipse at top - only bottom half visible */}
       <div className="absolute top-0 left-0 right-0 h-[900px] overflow-hidden pointer-events-none">
         <div className="absolute top-[-350px] left-1/2 -translate-x-1/2 w-[110%] h-[1100px]">
-          <div className="absolute inset-0 bg-gradient-to-b from-[#4F95DF] via-[#6FA8E5] to-transparent opacity-90 rounded-[50%] blur-3xl"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0055FF] via-[#5588FF] to-transparent opacity-90 rounded-[50%] blur-3xl"></div>
           {/* Additional organic shapes for depth */}
-          <div className="absolute top-[40%] left-[20%] w-[40%] h-[40%] bg-gradient-to-br from-[#4F95DF]/60 to-transparent rounded-[60%] blur-2xl"></div>
-          <div className="absolute top-[45%] right-[15%] w-[35%] h-[35%] bg-gradient-to-bl from-[#4F95DF]/50 to-transparent rounded-[55%] blur-2xl"></div>
+          <div className="absolute top-[40%] left-[20%] w-[40%] h-[40%] bg-gradient-to-br from-[#0055FF]/60 to-transparent rounded-[60%] blur-2xl"></div>
+          <div className="absolute top-[45%] right-[15%] w-[35%] h-[35%] bg-gradient-to-bl from-[#0055FF]/50 to-transparent rounded-[55%] blur-2xl"></div>
         </div>
       </div>
 
@@ -179,9 +179,9 @@ export default function Home() {
               <Link href="/signup">
                 <button
                   className="group relative px-8 py-4 text-lg font-medium text-white rounded-[20px] transition-all duration-300 ease-out
-                    bg-gradient-to-b from-[#5B9EE8] to-[#4F7FD9]
-                    shadow-[0_8px_24px_rgba(79,127,217,0.4),0_4px_12px_rgba(79,127,217,0.3)]
-                    hover:shadow-[0_16px_40px_rgba(79,127,217,0.5),0_8px_20px_rgba(79,127,217,0.4)]
+                    bg-gradient-to-b from-[#0055FF] to-[#0044DD]
+                    shadow-[0_8px_24px_rgba(0,85,255,0.4),0_4px_12px_rgba(0,85,255,0.3)]
+                    hover:shadow-[0_16px_40px_rgba(0,85,255,0.5),0_8px_20px_rgba(0,85,255,0.4)]
                     hover:-translate-y-1
                     active:translate-y-0"
                 >
@@ -191,19 +191,18 @@ export default function Home() {
             </div>
 
             {/* Hero Video */}
-            <div ref={videoContainerRef} className="max-w-5xl mx-auto mb-20">
-              <div className="relative rounded-2xl shadow-2xl overflow-hidden aspect-video bg-gradient-to-br from-slate-800 to-slate-900">
+            <div ref={videoContainerRef} className="max-w-2xl mx-auto mb-20">
+              <div className="relative rounded-2xl shadow-2xl overflow-hidden aspect-[780/720] bg-gradient-to-br from-slate-800 to-slate-900">
                 {shouldLoadVideo ? (
                   <video
                     className="w-full h-full object-cover"
-                    controls
                     playsInline
                     muted
                     autoPlay
                     loop
                     preload="metadata"
                   >
-                    <source src="/herolow.mp4" type="video/mp4" />
+                    <source src="/hero.mp4" type="video/mp4" />
                     <p className="text-white/60 text-sm p-4">Seu navegador não suporta vídeos HTML5.</p>
                   </video>
                 ) : (
@@ -223,96 +222,46 @@ export default function Home() {
 
             {/* Features Section */}
             <div className="max-w-6xl mx-auto pb-16">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
                 {/* Feature 1 - Audio Recording */}
-                <div>
-                  <h2 className="font-petrona-normal text-2xl md:text-3xl text-slate-900 mb-4">
-                    Grave áudio da consulta
-                  </h2>
-                  <p className="text-base md:text-lg text-slate-700 mb-6 leading-relaxed">
-                    Grave pelo WhatsApp ou no site e gere prontuário pronto em 1 minuto.
-                  </p>
-                  <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-8 shadow-lg border border-slate-200">
-                    <div className="space-y-4">
-                      <div className="bg-white rounded-xl p-6 shadow-sm">
-                        <div className="flex items-start gap-4">
-                          <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
-                            </svg>
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-slate-900 mb-2">Consulta gravada</h3>
-                            <p className="text-sm text-slate-600">Áudio capturado durante o atendimento</p>
-                            <div className="mt-3 flex items-center gap-2">
-                              <div className="h-1 flex-1 bg-green-200 rounded-full overflow-hidden">
-                                <div className="h-full w-3/4 bg-green-500 rounded-full"></div>
-                              </div>
-                              <span className="text-xs text-slate-500">5:23</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="inline-flex items-center gap-2 text-sm text-slate-600">
-                          <svg className="w-5 h-5 text-blue-500 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                          <span>Processando prontuário...</span>
-                        </div>
-                      </div>
-                    </div>
+                <div className="flex flex-col">
+                  <div className="min-h-[160px]">
+                    <h2 className="font-petrona-normal text-2xl md:text-3xl text-slate-900 mb-4">
+                      Grave áudio da consulta
+                    </h2>
+                    <p className="text-base md:text-lg text-slate-700 mb-6 leading-relaxed">
+                      Grave pelo WhatsApp ou no site e gere prontuário pronto em 1 minuto.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl overflow-hidden shadow-lg">
+                    <Image
+                      src="/session1.webp"
+                      alt="Grave áudio da consulta"
+                      width={600}
+                      height={400}
+                      className="w-full h-auto"
+                    />
                   </div>
                 </div>
 
                 {/* Feature 2 - Photo Upload */}
-                <div>
-                  <h2 className="font-petrona-normal text-2xl md:text-3xl text-slate-900 mb-4">
-                    Envie fotos dos exames
-                  </h2>
-                  <p className="text-base md:text-lg text-slate-700 mb-6 leading-relaxed">
-                    Adicione ao prontuário instantaneamente com análise automática.
-                  </p>
-                  <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-8 shadow-lg border border-slate-200">
-                    <div className="space-y-4">
-                      <div className="bg-white rounded-xl p-6 shadow-sm">
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center">
-                              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-slate-900">Hemograma completo</h3>
-                              <p className="text-xs text-slate-500">Adicionado há 2 minutos</p>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                              </svg>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="w-16 h-16 bg-purple-100 rounded-lg flex items-center justify-center">
-                              <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-slate-900">Raio-X Tórax</h3>
-                              <p className="text-xs text-slate-500">Processando...</p>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <svg className="w-4 h-4 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                <div className="flex flex-col">
+                  <div className="min-h-[160px]">
+                    <h2 className="font-petrona-normal text-2xl md:text-3xl text-slate-900 mb-4">
+                      Envie fotos dos exames
+                    </h2>
+                    <p className="text-base md:text-lg text-slate-700 mb-6 leading-relaxed">
+                      Adicione ao prontuário instantaneamente com análise automática.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl overflow-hidden shadow-lg">
+                    <Image
+                      src="/session2.webp"
+                      alt="Envie fotos dos exames"
+                      width={600}
+                      height={400}
+                      className="w-full h-auto"
+                    />
                   </div>
                 </div>
               </div>
@@ -362,9 +311,9 @@ export default function Home() {
                 <Link href="/signup">
                   <button
                     className="group relative px-8 py-4 text-lg font-medium text-white rounded-[20px] transition-all duration-300 ease-out
-                      bg-gradient-to-b from-[#5B9EE8] to-[#4F7FD9]
-                      shadow-[0_8px_24px_rgba(79,127,217,0.4),0_4px_12px_rgba(79,127,217,0.3)]
-                      hover:shadow-[0_16px_40px_rgba(79,127,217,0.5),0_8px_20px_rgba(79,127,217,0.4)]
+                      bg-gradient-to-b from-[#0055FF] to-[#0044DD]
+                      shadow-[0_8px_24px_rgba(0,85,255,0.4),0_4px_12px_rgba(0,85,255,0.3)]
+                      hover:shadow-[0_16px_40px_rgba(0,85,255,0.5),0_8px_20px_rgba(0,85,255,0.4)]
                       hover:-translate-y-1
                       active:translate-y-0"
                   >
@@ -386,9 +335,9 @@ export default function Home() {
               <Link href="/signup">
                 <button
                   className="group relative px-8 py-4 text-lg font-medium text-white rounded-[20px] transition-all duration-300 ease-out
-                    bg-gradient-to-b from-[#5B9EE8] to-[#4F7FD9]
-                    shadow-[0_8px_24px_rgba(79,127,217,0.4),0_4px_12px_rgba(79,127,217,0.3)]
-                    hover:shadow-[0_16px_40px_rgba(79,127,217,0.5),0_8px_20px_rgba(79,127,217,0.4)]
+                    bg-gradient-to-b from-[#0055FF] to-[#0044DD]
+                    shadow-[0_8px_24px_rgba(0,85,255,0.4),0_4px_12px_rgba(0,85,255,0.3)]
+                    hover:shadow-[0_16px_40px_rgba(0,85,255,0.5),0_8px_20px_rgba(0,85,255,0.4)]
                     hover:-translate-y-1
                     active:translate-y-0"
                 >
